@@ -1,0 +1,5 @@
+.gitignore
+*.a
+*.o
+.deps
+test_utreexo
