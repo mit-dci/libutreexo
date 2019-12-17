@@ -7,7 +7,14 @@ LDFLAGS     =
 
 LIBUTREEXO = libutreexo.a
 LIBUTREEXO_OBJS  =
+LIBUTREEXO_OBJS += blockproof.o
+LIBUTREEXO_OBJS += forest.o
+LIBUTREEXO_OBJS += pollard.o
+LIBUTREEXO_OBJS += polnode.o
+LIBUTREEXO_OBJS += uint256.o
+LIBUTREEXO_OBJS += undo.o
 LIBUTREEXO_OBJS += utreexo.o
+LIBUTREEXO_OBJS += util/strencodings.o
 LIBUTREEXO_OBJS += crypto/sha256.o
 LIBUTREEXO_OBJS += crypto/sha256_avx2.o
 LIBUTREEXO_OBJS += crypto/sha256_shani.o
