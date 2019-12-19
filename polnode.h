@@ -12,7 +12,6 @@ public:
     void chop();
     void prune();
     void leafPrune();
-private:
     uint256 data;
     polNode* niece[2];
 };

@@ -18,20 +18,20 @@ class Pollard
 public:
     void Modify(const std::vector<LeafTXO>& adds, const std::vector<uint64_t>& dels);
     std::string Stats() const;
+    void IngestBlockProof(const BlockProof& bp);
+
+private:
+    using tops_iter = std::vector<polNode>::iterator;
+    std::pair<std::vector<tops_iter>, std::vector<tops_iter>> descendToPos(uint64_t);
     void add(const std::vector<LeafTXO>& adds);
     bool addOne(const uint256& add, bool remember);
     bool rem(const std::vector<uint64_t>& dels);
     void moveNode(const arrow& a);
     void reHashOne(uint64_t pos);
-
     Forest toFull();
-    void IngestBlockProof(const BlockProof& bp);
     uint8_t height();
     std::vector<uint256> topHashesReverse();
 
-private:
-    using tops_iter = std::vector<polNode>::iterator;
-    std::pair<std::vector<tops_iter>, std::vector<tops_iter>> descendToPos(uint64_t);
     uint64_t numLeaves; // number of leaves in the pollard forest
     std::vector<polNode> tops; // slice of the tree tops, which are polNodes.
     // tops are in big to small order

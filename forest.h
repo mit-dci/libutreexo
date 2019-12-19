@@ -28,20 +28,20 @@ public:
     bool VerifyBlockProof(const BlockProof& bp) const;
 
     void Undo(const undoBlock& ub) const;
-private:
-    void reMap(uint8_t destHeight);
-    void reHash(const std::vector<uint64_t>& dirt);
-    void cleanup();
-
-    void sanity() const;
     void PosMapSanity() const;
     std::string Stats() const;
     std::string ToString() const;
     std::vector<uint256> GetTops() const;
     undoBlock BuildUndoData(uint64_t numadds, const std::vector<uint64_t>& dels) const;
 
-    uint64_t numLeaves;
     uint64_t HistoricHashes;
+private:
+    void reMap(uint8_t destHeight);
+    void reHash(const std::vector<uint64_t>& dirt);
+    void cleanup();
+
+    void sanity() const;
+    uint64_t numLeaves;
     uint8_t height;
     std::vector<uint256> forest;
     std::unordered_map<uint64_t, uint256> positionMap;
