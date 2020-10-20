@@ -11,6 +11,7 @@ LIBUTREEXO_OBJS += state.o
 LIBUTREEXO_OBJS += uint256.o
 LIBUTREEXO_OBJS += utreexo.o
 LIBUTREEXO_OBJS += util/strencodings.o
+LIBUTREEXO_OBJS += crypto/sha512.o
 LIBUTREEXO_OBJS += crypto/sha256.o
 LIBUTREEXO_OBJS += crypto/sha256_avx2.o
 LIBUTREEXO_OBJS += crypto/sha256_shani.o
