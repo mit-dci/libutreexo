@@ -1,18 +1,14 @@
-CXX         = c++
-AR			= ar
-ARFLAGS		= -cr
-CXXFLAGS    = -O2 -g -Wall -Wextra
-CPPFLAGS    = 
-LDFLAGS     =
+CXX      = c++
+AR       = ar
+ARFLAGS  = -cr
+CXXFLAGS = -O2 -g -Wall -Wextra
+CPPFLAGS = 
+LDFLAGS  =
 
 LIBUTREEXO = libutreexo.a
 LIBUTREEXO_OBJS  =
-LIBUTREEXO_OBJS += blockproof.o
-LIBUTREEXO_OBJS += forest.o
-LIBUTREEXO_OBJS += pollard.o
-LIBUTREEXO_OBJS += polnode.o
+LIBUTREEXO_OBJS += state.o
 LIBUTREEXO_OBJS += uint256.o
-LIBUTREEXO_OBJS += undo.o
 LIBUTREEXO_OBJS += utreexo.o
 LIBUTREEXO_OBJS += util/strencodings.o
 LIBUTREEXO_OBJS += crypto/sha256.o
@@ -22,7 +18,8 @@ LIBUTREEXO_OBJS += crypto/sha256_sse4.o
 LIBUTREEXO_OBJS += crypto/sha256_sse41.o
 
 TEST_OBJS =
-TEST_OBJS += test_utreexo.o
+TEST_OBJS += state_tests.o
+TEST_OBJS += tests.o
 TEST_UTREEXO = test_utreexo
 
 OBJS   =
@@ -37,7 +34,7 @@ PROGS += $(TEST_UTREEXO)
 
 CXXFLAGS_INT = -std=c++11
 CPPFLAGS_INT = -I.
-LDFLAGS_INT  =
+LDFLAGS_INT  = -lboost_unit_test_framework
 
 SSE41_CXXFLAGS = -msse4.1
 AVX2_CXXFLAGS = -mavx -mavx2
