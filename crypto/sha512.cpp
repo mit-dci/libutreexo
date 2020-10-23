@@ -197,6 +197,19 @@ void CSHA512::Finalize(unsigned char hash[OUTPUT_SIZE])
     WriteBE64(hash + 56, s[7]);
 }
 
+void CSHA512::Finalize256(unsigned char hash[OUTPUT_SIZE])
+{
+    static const unsigned char pad[128] = {0x80};
+    unsigned char sizedesc[16] = {0x00};
+    WriteBE64(sizedesc + 8, bytes << 3);
+    Write(pad, 1 + ((239 - (bytes % 128)) % 128));
+    Write(sizedesc, 16);
+    WriteBE64(hash, s[0]);
+    WriteBE64(hash + 8, s[1]);
+    WriteBE64(hash + 16, s[2]);
+    WriteBE64(hash + 24, s[3]);
+}
+
 CSHA512& CSHA512::Reset()
 {
     bytes = 0;
