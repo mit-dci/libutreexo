@@ -257,7 +257,15 @@ uint64_t ForestState::rootPosition(uint8_t row) const
     return _rootPosition(row, this->numLeaves);
 }
 
-
+std::vector<uint64_t> ForestState::rootPositions() const
+{
+    std::vector<uint64_t> roots;
+    for (uint8_t row = this->numRows(); row >= 0; row--) {
+        if (this->hasRoot(row)) {
+            roots.push_back(this->rootPosition(row));
+        }
+    }
+}
 // rows
 
 

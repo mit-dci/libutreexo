@@ -2,7 +2,6 @@
 #ifndef UTREEXO_STATE_H
 #define UTREEXO_STATE_H
 
-#include <iostream>
 #include <stdint.h>
 #include <vector>
 
@@ -78,6 +77,8 @@ public:
     // Return the root position on a row.
     uint64_t rootPosition(uint8_t row) const;
     uint64_t rootPosition(uint8_t row, uint64_t numLeaves) const;
+    // Return the positions of the roots in the forest
+    std::vector<uint64_t> rootPositions() const;
 
     // Functions for rows:
 
