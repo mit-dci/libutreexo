@@ -19,8 +19,8 @@ LIBUTREEXO_OBJS += crypto/sha256_sse4.o
 LIBUTREEXO_OBJS += crypto/sha256_sse41.o
 
 TEST_OBJS =
-TEST_OBJS += state_tests.o
-TEST_OBJS += tests.o
+TEST_OBJS += test/state_tests.o
+TEST_OBJS += test/tests.o
 TEST_UTREEXO = test_utreexo
 
 OBJS   =
