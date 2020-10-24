@@ -260,11 +260,12 @@ uint64_t ForestState::rootPosition(uint8_t row) const
 std::vector<uint64_t> ForestState::rootPositions() const
 {
     std::vector<uint64_t> roots;
-    for (uint8_t row = this->numRows(); row >= 0; row--) {
+    for (uint8_t row = this->numRows(); row >= 0 && row < 64; row--) {
         if (this->hasRoot(row)) {
             roots.push_back(this->rootPosition(row));
         }
     }
+    return roots;
 }
 // rows
 
@@ -318,6 +319,13 @@ uint8_t ForestState::detectRow(uint64_t pos) const
     }
 
     return row;
+}
+
+uint8_t ForestState::rowOffset(uint64_t pos) const
+{
+    uint8_t row = this->detectRow(pos);
+    uint64_t marker = this->maxNodes();
+    return (0xFFFFFFFFFFFFFFFF << (this->numRows() + 1 - row)) & marker;
 }
 
 // transform
