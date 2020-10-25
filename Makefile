@@ -1,4 +1,4 @@
-CXX      = c++
+CXX      = g++
 AR       = ar
 ARFLAGS  = -cr
 CXXFLAGS = -O2 -g -Wall -Wextra
@@ -8,6 +8,9 @@ LDFLAGS  =
 LIBUTREEXO = libutreexo.a
 LIBUTREEXO_OBJS  =
 LIBUTREEXO_OBJS += state.o
+LIBUTREEXO_OBJS += accumulator.o
+LIBUTREEXO_OBJS += pollard.o
+LIBUTREEXO_OBJS += ram_forest.o
 LIBUTREEXO_OBJS += uint256.o
 LIBUTREEXO_OBJS += utreexo.o
 LIBUTREEXO_OBJS += util/strencodings.o
@@ -20,6 +23,7 @@ LIBUTREEXO_OBJS += crypto/sha256_sse41.o
 
 TEST_OBJS =
 TEST_OBJS += test/state_tests.o
+TEST_OBJS += test/accumulator_tests.o
 TEST_OBJS += test/tests.o
 TEST_UTREEXO = test_utreexo
 

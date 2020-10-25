@@ -2,4 +2,9 @@
 *.a
 *.o
 .deps
+*.swp
 test_utreexo
+.vscode
+compile_commands.json
+.cache
+make
