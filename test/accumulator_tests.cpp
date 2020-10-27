@@ -38,8 +38,9 @@ BOOST_AUTO_TEST_CASE(simple_full)
     for (int i = 0; i < 15; i++) {
         leaves.push_back(std::shared_ptr<Accumulator::Leaf>((Accumulator::Leaf*)new TestLeaf(i + 1)));
     }
-    full->add(leaves);
-
+    full->modify(leaves, std::vector<uint64_t>());
+    leaves.clear();
+    full->modify(leaves, {0, 2, 3, 9});
     delete full;
 }
 
@@ -52,7 +53,9 @@ BOOST_AUTO_TEST_CASE(simple_pruned)
     for (int i = 0; i < 15; i++) {
         leaves.push_back(std::shared_ptr<Accumulator::Leaf>((Accumulator::Leaf*)new TestLeaf(i + 1)));
     }
-    pruned->add(leaves);
+    pruned->modify(leaves, std::vector<uint64_t>());
+    leaves.clear();
+    pruned->modify(leaves, {0, 2, 3, 9});
 
     delete pruned;
 }

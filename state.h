@@ -43,6 +43,7 @@ public:
     // Return the position of the left child.
     // Same as leftDescendant(pos, 1).
     uint64_t leftChild(uint64_t pos) const;
+    uint64_t child(uint64_t pos, uint64_t placement) const;
     uint64_t leftDescendant(uint64_t pos, uint8_t drop) const;
     // Return the position of the cousin.
     // Placement (left,right) remains.
@@ -79,6 +80,7 @@ public:
     uint64_t rootPosition(uint8_t row, uint64_t numLeaves) const;
     // Return the positions of the roots in the forest
     std::vector<uint64_t> rootPositions() const;
+    std::vector<uint64_t> rootPositions(uint64_t numLeaves) const;
 
     // Functions for rows:
 

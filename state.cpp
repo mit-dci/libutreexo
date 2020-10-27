@@ -45,8 +45,9 @@ uint8_t trailingZeros(uint64_t n)
 }
 
 // TODO: Maybe export these?
-uint64_t _rootPosition(uint8_t row, uint64_t numLeaves);
+uint64_t _rootPosition(uint8_t row, uint64_t numLeaves, uint8_t rows);
 uint8_t _numRows(uint64_t numLeaves);
+uint8_t _hasRoot(uint64_t numLeaves);
 uint64_t _maxNodes(uint64_t numLeaves);
 
 // positions
@@ -70,6 +71,11 @@ uint64_t ForestState::ancestor(uint64_t pos, uint8_t rise) const
 uint64_t ForestState::leftChild(uint64_t pos) const
 {
     return (pos << 1) & (this->maxNodes());
+}
+
+uint64_t ForestState::child(uint64_t pos, uint64_t placement) const
+{
+    return this->leftChild(pos) | placement;
 }
 
 uint64_t ForestState::leftDescendant(uint64_t pos, uint8_t drop) const
@@ -239,22 +245,27 @@ uint8_t ForestState::numRoots() const
     return bits.count();
 }
 
-bool ForestState::hasRoot(uint8_t row) const
+bool _hasRoot(uint64_t numLeaves, uint8_t row)
 {
-    return (this->numLeaves >> row) & 1;
+    return (numLeaves >> row) & 1;
 }
 
-uint64_t _rootPosition(uint8_t row, uint64_t numLeaves)
+bool ForestState::hasRoot(uint8_t row) const
 {
-    uint8_t rows = _numRows(numLeaves);
+    return _hasRoot(this->numLeaves, row);
+}
+
+uint64_t _rootPosition(uint8_t row, uint64_t numLeaves, uint8_t rows)
+{
     uint64_t mask = _maxNodes(numLeaves);
     uint64_t before = numLeaves & (mask << (row + 1));
     uint64_t shifted = (before >> row) | (mask << (rows - (row - 1)));
     return shifted & mask;
 }
+
 uint64_t ForestState::rootPosition(uint8_t row) const
 {
-    return _rootPosition(row, this->numLeaves);
+    return _rootPosition(row, this->numLeaves, this->numRows());
 }
 
 std::vector<uint64_t> ForestState::rootPositions() const
@@ -263,6 +274,17 @@ std::vector<uint64_t> ForestState::rootPositions() const
     for (uint8_t row = this->numRows(); row >= 0 && row < 64; row--) {
         if (this->hasRoot(row)) {
             roots.push_back(this->rootPosition(row));
+        }
+    }
+    return roots;
+}
+
+std::vector<uint64_t> ForestState::rootPositions(uint64_t numLeaves) const
+{
+    std::vector<uint64_t> roots;
+    for (uint8_t row = this->numRows(); row >= 0 && row < 64; row--) {
+        if (_hasRoot(numLeaves, row)) {
+            roots.push_back(_rootPosition(row, numLeaves, this->numRows()));
         }
     }
     return roots;
@@ -447,7 +469,7 @@ ForestState::Swap ForestState::makeCollapse(const std::vector<uint64_t>& targets
                                             uint64_t nextNumLeaves) const
 {
     // The position of the root on this row after the deletion.
-    uint64_t rootDest = _rootPosition(row, nextNumLeaves);
+    uint64_t rootDest = _rootPosition(row, nextNumLeaves, this->numRows());
 
     if (!deletionRemains && rootPresent) {
         // No deletion remaining but there is a root.
