@@ -4,6 +4,9 @@
 #include <pollard.h>
 #include <string.h>
 
+// Get the internal node from a std::shared_ptr<Accumulator::Node>.
+#define INTERNAL_NODE(accNode) (((Pollard::Node*)accNode.get())->node)
+
 // Pollard
 
 std::vector<std::shared_ptr<Pollard::InternalNode>> Pollard::read(uint64_t pos, std::shared_ptr<Accumulator::Node>& reHashPath) const
@@ -18,8 +21,8 @@ std::vector<std::shared_ptr<Pollard::InternalNode>> Pollard::read(uint64_t pos, 
 
     // There is no node above a root.
     reHashPath = nullptr;
-    std::shared_ptr<Pollard::InternalNode> node = this->mRoots[tree],
-                                           sibling = this->mRoots[tree];
+    std::shared_ptr<Pollard::InternalNode> node = INTERNAL_NODE(this->mRoots[tree]),
+                                           sibling = INTERNAL_NODE(this->mRoots[tree]);
     uint64_t nodePos = this->state.rootPositions()[tree];
 
     if (pathLength == 0) {
@@ -46,20 +49,6 @@ std::vector<std::shared_ptr<Pollard::InternalNode>> Pollard::read(uint64_t pos, 
     family.push_back(node);
     family.push_back(sibling);
     return family;
-}
-
-std::vector<std::shared_ptr<Accumulator::Node>> Pollard::roots() const
-{
-    std::vector<uint64_t> vRoots = this->state.rootPositions();
-    auto rootPosIt = vRoots.begin();
-    std::vector<std::shared_ptr<Accumulator::Node>> forestRoots;
-    for (std::shared_ptr<InternalNode> root : this->mRoots) {
-        forestRoots.push_back(std::shared_ptr<Accumulator::Node>(
-            (Accumulator::Node*)(new Pollard::Node(this->state, *rootPosIt, root))));
-        rootPosIt++;
-    }
-
-    return forestRoots;
 }
 
 std::shared_ptr<Accumulator::Node> Pollard::swapSubTrees(uint64_t posA, uint64_t posB)
@@ -89,17 +78,18 @@ std::shared_ptr<Accumulator::Node> Pollard::newLeaf(uint256 hash)
 {
     auto intNode = std::shared_ptr<InternalNode>(new InternalNode(hash));
     intNode->nieces[0] = intNode;
-    this->mRoots.push_back(intNode);
 
-    return std::shared_ptr<Accumulator::Node>(
-        (Accumulator::Node*)new Pollard::Node(this->state, this->state.numLeaves, intNode));
+    this->mRoots.push_back(std::shared_ptr<Accumulator::Node>(
+        (Accumulator::Node*)new Pollard::Node(this->state, this->state.numLeaves, intNode)));
+
+    return this->mRoots.back();
 }
 
 std::shared_ptr<Accumulator::Node> Pollard::mergeRoot(uint64_t parentPos, uint256 parentHash)
 {
-    std::shared_ptr<InternalNode> intRight = this->mRoots.back();
+    std::shared_ptr<InternalNode> intRight = INTERNAL_NODE(this->mRoots.back());
     this->mRoots.pop_back();
-    std::shared_ptr<InternalNode> intLeft = this->mRoots.back();
+    std::shared_ptr<InternalNode> intLeft = INTERNAL_NODE(this->mRoots.back());
     this->mRoots.pop_back();
 
     // swap nieces
@@ -111,9 +101,10 @@ std::shared_ptr<Accumulator::Node> Pollard::mergeRoot(uint64_t parentPos, uint25
     intNode->nieces[1] = intRight;
     intNode->prune();
 
-    this->mRoots.push_back(intNode);
+    this->mRoots.push_back(std::shared_ptr<Accumulator::Node>(
+        (Accumulator::Node*)(new Pollard::Node(this->state, parentPos, intNode))));
 
-    return std::shared_ptr<Accumulator::Node>((Accumulator::Node*)(new Pollard::Node(this->state, parentPos, intNode)));
+    return this->mRoots.back();
 }
 
 void Pollard::finalizeRemove(const ForestState nextState)
@@ -122,13 +113,14 @@ void Pollard::finalizeRemove(const ForestState nextState)
     std::vector<uint64_t> newPositions = this->state.rootPositions(nextState.numLeaves);
 
     // Select the new roots.
-    std::vector<std::shared_ptr<InternalNode>> newRoots;
+    std::vector<std::shared_ptr<Accumulator::Node>> newRoots;
     newRoots.reserve(newPositions.size());
 
     for (uint64_t newPos : newPositions) {
         std::shared_ptr<Accumulator::Node> unusedPath = nullptr;
         std::vector<std::shared_ptr<InternalNode>> family = this->read(newPos, unusedPath);
-        newRoots.push_back(family.at(0));
+        newRoots.push_back(std::shared_ptr<Accumulator::Node>(
+            (Accumulator::Node*)new Pollard::Node(this->state, newPos, family.at(0))));
     }
 
     this->mRoots = newRoots;

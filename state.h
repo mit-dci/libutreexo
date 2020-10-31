@@ -89,7 +89,7 @@ public:
     // Return the row of the position.
     uint8_t detectRow(uint64_t pos) const;
     // Return the position of the first node in the row.
-    uint8_t rowOffset(uint64_t pos) const;
+    uint64_t rowOffset(uint64_t pos) const;
 
     // Functions for modification of the state.
     // These functions are the only ones that may change the state.

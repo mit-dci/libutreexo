@@ -30,7 +30,6 @@ protected:
         std::shared_ptr<Accumulator::Node> parent() const override;
     };
 
-    std::vector<std::shared_ptr<Accumulator::Node>> roots() const override;
     std::shared_ptr<Accumulator::Node> swapSubTrees(uint64_t posA, uint64_t posB) override;
     std::shared_ptr<Accumulator::Node> mergeRoot(uint64_t parentPos, uint256 parentHash) override;
     std::shared_ptr<Accumulator::Node> newLeaf(uint256 hash) override;
@@ -44,6 +43,7 @@ public:
     }
 
     const Accumulator::BatchProof prove(const std::vector<uint64_t>& targets) const override;
+    void add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves) override;
 };
 
 #endif // UTREEXO_RAMFOREST_H

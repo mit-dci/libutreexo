@@ -37,22 +37,35 @@ void Accumulator::printRoots(const std::vector<std::shared_ptr<Accumulator::Node
 void Accumulator::add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves)
 {
     for (auto leaf = leaves.begin(); leaf < leaves.end(); leaf++) {
-        std::vector<std::shared_ptr<Accumulator::Node>> roots = this->roots();
-
-        auto root = roots.rbegin();
+        int root = this->mRoots.size() - 1;
         std::shared_ptr<Accumulator::Node> newRoot = this->newLeaf((*leaf)->hash());
+
         for (uint8_t row = 0; this->state.hasRoot(row); row++) {
             uint64_t parentPos = this->state.parent(newRoot->position);
-            uint256 hash = Accumulator::parentHash((*root)->hash(), newRoot->hash());
+            uint256 hash = Accumulator::parentHash(this->mRoots[root]->hash(), newRoot->hash());
             newRoot = this->mergeRoot(parentPos, hash);
-            root++;
+            // Decreasing because we are going in reverse order.
+            root--;
         }
+
+        // Update the state by adding one leaf.
+        uint8_t prevRows = this->state.numRows();
         this->state.add(1);
+        if (prevRows == 0 || prevRows == this->state.numRows()) {
+            continue;
+        }
+
+        // Update the root positions.
+        // This only need happen if the number of rows in the forest changes.
+        // In this case there will always be exactly two roots, one on row 0 and one
+        // on the next-to-last row.
+        this->mRoots[1]->position = this->state.rootPosition(0);
+        this->mRoots[0]->position = this->state.rootPosition(this->state.numRows() - 1);
     }
 
     std::cout << "roots after adding:" << std::endl;
-    std::vector<std::shared_ptr<Accumulator::Node>> roots = this->roots();
-    printRoots(roots);
+    print_vector(this->state.rootPositions());
+    printRoots(this->mRoots);
 }
 
 bool isSortedNoDupes(const std::vector<uint64_t>& targets)

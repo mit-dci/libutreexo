@@ -32,7 +32,11 @@ public:
             : targets(targets), proof(proof) {}
     };
 
-    Accumulator(ForestState& state) : state(state) {}
+    Accumulator(ForestState& state) : state(state)
+    {
+        this->mRoots.reserve(64);
+    }
+
     virtual ~Accumulator() {}
     virtual const BatchProof prove(const std::vector<uint64_t>& targets) const = 0;
 
@@ -43,8 +47,6 @@ public:
     static uint256 parentHash(const uint256& left, const uint256& right);
 
 protected:
-    ForestState& state;
-
     class Node
     {
     protected:
@@ -64,7 +66,7 @@ protected:
             : forestState(state), mParent(parent), position(position) {}
 
     public:
-        const uint64_t position;
+        uint64_t position;
         virtual ~Node() {}
 
         virtual const uint256& hash() const = 0;
@@ -76,8 +78,8 @@ protected:
         }
     };
 
-    // Return the roots of the forest.
-    virtual std::vector<std::shared_ptr<Accumulator::Node>> roots() const = 0;
+    ForestState& state;
+    std::vector<std::shared_ptr<Node>> mRoots;
 
     /*
      * Swap two subtrees in the forest.
@@ -98,7 +100,7 @@ protected:
     virtual void finalizeRemove(const ForestState nextState) = 0;
 
     void printRoots(const std::vector<std::shared_ptr<Accumulator::Node>>& roots) const;
-    void add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves);
+    virtual void add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves);
     void remove(const std::vector<uint64_t>& targets);
 };
 

@@ -11,12 +11,10 @@ private:
     {
     public:
         uint256 hash;
-        std::vector<std::shared_ptr<InternalNode>> nieces;
+        std::shared_ptr<InternalNode> nieces[2];
 
         InternalNode(uint256 hash) : hash(hash)
         {
-            this->nieces = std::vector<std::shared_ptr<InternalNode>>();
-            this->nieces.resize(2);
             this->nieces[0] = nullptr;
             this->nieces[1] = nullptr;
         }
@@ -24,8 +22,6 @@ private:
         void prune();
         bool deadEnd();
     };
-
-    std::vector<std::shared_ptr<InternalNode>> mRoots;
 
     // Return the node and its sibling.
     // Point path to the parent of the node. The path to the node can be traversed in reverse order using the
@@ -56,7 +52,6 @@ protected:
         void reHash() override;
     };
 
-    std::vector<std::shared_ptr<Accumulator::Node>> roots() const override;
     std::shared_ptr<Accumulator::Node> swapSubTrees(uint64_t posA, uint64_t posB) override;
     std::shared_ptr<Accumulator::Node> mergeRoot(uint64_t parentPos, uint256 parentHash) override;
     std::shared_ptr<Accumulator::Node> newLeaf(uint256 hash) override;

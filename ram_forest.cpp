@@ -57,7 +57,7 @@ const uint256 RamForest::read(uint64_t pos) const
 
     if ((pos - offset) >= rowData.size()) {
         // row not big enough
-        std::cout << "row not big enough " << pos << " " << +row << " " << rowData.size() << std::endl;
+        std::cout << "row not big enough " << pos << " " << offset << " " << +row << " " << rowData.size() << std::endl;
         return uint256S("");
     }
 
@@ -74,22 +74,6 @@ void RamForest::swapRange(uint64_t from, uint64_t to, uint64_t range)
     for (uint64_t i = 0; i < range; i++) {
         std::swap(rowData[(from - offsetFrom) + i], rowData[(to - offsetTo) + i]);
     }
-}
-
-std::vector<std::shared_ptr<Accumulator::Node>> RamForest::roots() const
-{
-    std::vector<uint64_t> vRoots = this->state.rootPositions();
-    auto rootPosIt = vRoots.begin();
-    std::vector<std::shared_ptr<Accumulator::Node>> forestRoots;
-    while (rootPosIt < vRoots.end()) {
-        // TODO: check for nullptr returned from read.
-        // TODO: kinda ugly to cast away the const on "this" here.
-        forestRoots.push_back(std::shared_ptr<Accumulator::Node>(
-            (Accumulator::Node*)(new RamForest::Node((RamForest*)this, *rootPosIt, this->read(*rootPosIt)))));
-        rootPosIt++;
-    }
-
-    return forestRoots;
 }
 
 std::shared_ptr<Accumulator::Node> RamForest::swapSubTrees(uint64_t posA, uint64_t posB)
@@ -110,32 +94,33 @@ std::shared_ptr<Accumulator::Node> RamForest::swapSubTrees(uint64_t posA, uint64
 
 std::shared_ptr<Accumulator::Node> RamForest::mergeRoot(uint64_t parentPos, uint256 parentHash)
 {
+    this->mRoots.pop_back();
+    this->mRoots.pop_back();
+
     // compute row
     uint8_t row = this->state.detectRow(parentPos);
 
     // add hash to forest
     this->data.at(row).push_back(parentHash);
 
-    return std::shared_ptr<Accumulator::Node>((Accumulator::Node*)new RamForest::Node(
+    this->mRoots.push_back(std::shared_ptr<Accumulator::Node>((Accumulator::Node*)new RamForest::Node(
         this,
         parentPos,
-        this->data.at(row).back()));
+        this->data.at(row).back())));
+
+    return this->mRoots.back();
 }
 
 std::shared_ptr<Accumulator::Node> RamForest::newLeaf(uint256 hash)
 {
-    ForestState nextState(this->state.numLeaves + 1);
-    if (nextState.numRows() > this->state.numRows()) {
-        // append new row
-        this->data.push_back(std::vector<uint256>());
-    }
-
     // append new hash on row 0 (as a leaf)
     this->data.at(0).push_back(hash);
-    return std::shared_ptr<Accumulator::Node>((Accumulator::Node*)new RamForest::Node(
+    this->mRoots.push_back(std::shared_ptr<Accumulator::Node>((Accumulator::Node*)new RamForest::Node(
         this,
         this->state.numLeaves,
-        this->data.at(0).back()));
+        hash)));
+
+    return this->mRoots.back();
 }
 
 void RamForest::finalizeRemove(const ForestState nextState)
@@ -147,6 +132,20 @@ void RamForest::finalizeRemove(const ForestState nextState)
         // Compute the number of nodes in the next row.
         numLeaves >>= 1;
     }
+
+    // Compute the positions of the new roots in the current state.
+    std::vector<uint64_t> newPositions = this->state.rootPositions(nextState.numLeaves);
+
+    // Select the new roots.
+    std::vector<std::shared_ptr<Accumulator::Node>> newRoots;
+    newRoots.reserve(newPositions.size());
+
+    for (uint64_t newPos : newPositions) {
+        newRoots.push_back(std::shared_ptr<Accumulator::Node>(
+            (Accumulator::Node*)new RamForest::Node(this, newPos, this->read(newPos))));
+    }
+
+    this->mRoots = newRoots;
 }
 
 const Accumulator::BatchProof RamForest::prove(const std::vector<uint64_t>& targets) const
@@ -160,4 +159,19 @@ const Accumulator::BatchProof RamForest::prove(const std::vector<uint64_t>& targ
     }
 
     return Accumulator::BatchProof(targets, proof);
+}
+
+void RamForest::add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves)
+{
+    // Preallocate data with the required size.
+    ForestState nextState(this->state.numLeaves + leaves.size());
+    for (uint8_t row = 0; row < nextState.numRows(); row++) {
+        if (row + 1 > this->data.size()) {
+            this->data.push_back(std::vector<uint256>());
+        }
+
+        this->data.at(row).reserve(nextState.numLeaves >> row);
+    }
+
+    Accumulator::add(leaves);
 }
