@@ -30,6 +30,9 @@ public:
     public:
         BatchProof(const std::vector<uint64_t> targets, std::vector<uint256> proof)
             : targets(targets), proof(proof) {}
+
+        bool verify(ForestState state, const std::vector<uint256> roots, const std::vector<uint256> targetHashes) const;
+        void print();
     };
 
     Accumulator(ForestState& state) : state(state)
@@ -43,6 +46,7 @@ public:
     bool verify(const BatchProof& proof);
     void modify(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves,
                 const std::vector<uint64_t>& targets);
+    const std::vector<uint256> roots() const;
 
     static uint256 parentHash(const uint256& left, const uint256& right);
 

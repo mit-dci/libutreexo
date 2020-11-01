@@ -60,4 +60,32 @@ BOOST_AUTO_TEST_CASE(simple_pruned)
     delete pruned;
 }
 
+BOOST_AUTO_TEST_CASE(simple_verify)
+{
+    ForestState state(0);
+    Accumulator* full = (Accumulator*)new RamForest(state);
+
+    auto leaves = std::vector<std::shared_ptr<Accumulator::Leaf>>();
+    for (int i = 0; i < 15; i++) {
+        leaves.push_back(std::shared_ptr<Accumulator::Leaf>((Accumulator::Leaf*)new TestLeaf(i + 1)));
+    }
+    full->modify(leaves, std::vector<uint64_t>());
+
+    Accumulator::BatchProof proof = full->prove({0, 2, 3, 9});
+    proof.print();
+
+    auto roots = full->roots();
+    std::reverse(roots.begin(), roots.end());
+
+    std::vector<uint256> targetHashes;
+    targetHashes.push_back(leaves.at(0)->hash());
+    targetHashes.push_back(leaves.at(2)->hash());
+    targetHashes.push_back(leaves.at(3)->hash());
+    targetHashes.push_back(leaves.at(9)->hash());
+
+    BOOST_CHECK(proof.verify(state, roots, targetHashes));
+
+    delete full;
+}
+
 BOOST_AUTO_TEST_SUITE_END()

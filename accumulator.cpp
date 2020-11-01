@@ -10,6 +10,18 @@ void Accumulator::modify(const std::vector<std::shared_ptr<Accumulator::Leaf>>& 
     this->add(leaves);
 }
 
+const std::vector<uint256> Accumulator::roots() const
+{
+    std::vector<uint256> result;
+    result.reserve(this->mRoots.size());
+
+    for (auto root : this->mRoots) {
+        result.push_back(root->hash());
+    }
+
+    return result;
+}
+
 uint256 Accumulator::parentHash(const uint256& left, const uint256& right)
 {
     CSHA256 hasher;
@@ -130,4 +142,113 @@ void Accumulator::remove(const std::vector<uint64_t>& targets)
     ForestState nextState(this->state.numLeaves - targets.size());
     this->finalizeRemove(nextState);
     this->state.remove(targets.size());
+}
+
+// Accumulator::BatchProof
+bool Accumulator::BatchProof::verify(ForestState state, const std::vector<uint256> roots, const std::vector<uint256> targetHashes) const
+{
+    if (this->targets.size() != targetHashes.size()) {
+        // TODO: error the number of targets does not math the number of provided hashes.
+        return false;
+    }
+
+    std::vector<uint64_t> proofPositions, computablePositions;
+    std::tie(proofPositions, computablePositions) = state.proofPositions(this->targets);
+
+    if (proofPositions.size() != this->proof.size()) {
+        //TODO: error the number of proof hashes does not math the required number
+        return false;
+    }
+
+    // targetNodes holds nodes that are known, on the bottom row those
+    // are the targets, on the upper rows it holds computed nodes.
+    std::vector<std::pair<uint64_t, uint256>> targetNodes;
+    targetNodes.reserve(targets.size() * state.numRows());
+    for (uint64_t i = 0; i < this->targets.size(); i++) {
+        targetNodes.push_back(std::make_pair(this->targets[i], targetHashes[i]));
+    }
+
+    // rootCandidates holds the roots that were computed and have to be
+    // compared to the actual roots at the end.
+    std::vector<uint256> rootCandidates;
+    rootCandidates.reserve(roots.size());
+
+    // Handle the row 0 root.
+    if (state.hasRoot(0) && this->targets.back() == state.rootPosition(0)) {
+        rootCandidates.push_back(targetNodes.back().second);
+        targetNodes.pop_back();
+    }
+
+    uint64_t proofIndex = 0;
+    for (uint64_t targetIndex = 0; targetIndex < targetNodes.size();) {
+        std::pair<uint64_t, uint256> target = targetNodes[targetIndex], proof;
+
+        // Find the proof node. It will either be in the batch proof or in targetNodes.
+        if (proofIndex < proofPositions.size() && state.sibling(target.first) == proofPositions[proofIndex]) {
+            // target has its sibling in the proof.
+            proof = std::make_pair(proofPositions[proofIndex], this->proof[proofIndex]);
+            proofIndex++;
+            targetIndex++;
+        } else {
+            if (targetIndex + 1 >= targetNodes.size()) {
+                // TODO: error the sibling was expected to be in the targets but it was not.
+                return false;
+            }
+            // target has its sibling in the targets.
+            proof = targetNodes[targetIndex + 1];
+            // Advance by two because both the target and the proof where found in targetNodes.
+            targetIndex += 2;
+        }
+
+        auto left = target, right = proof;
+        if (state.rightSibling(left.first) == left.first) {
+            // Left was actually right and right was actually left.
+            std::swap(left, right);
+        }
+
+        // Compute the parent hash.
+        uint64_t parentPos = state.parent(left.first);
+        uint256 parentHash = Accumulator::parentHash(left.second, right.second);
+
+        uint64_t parentRow = state.detectRow(parentPos);
+        if (state.hasRoot(parentRow) && parentPos == state.rootPosition(parentRow)) {
+            // Store the parent as a root candidate.
+            rootCandidates.push_back(parentHash);
+            continue;
+        }
+
+        targetNodes.push_back(std::make_pair(parentPos, parentHash));
+    }
+
+    if (rootCandidates.size() == 0) {
+        // TODO: error no roots to verify
+        return false;
+    }
+
+    uint8_t rootMatches = 0;
+    for (uint256 root : roots) {
+        if (rootCandidates.size() > rootMatches && root.Compare(rootCandidates[rootMatches]) == 0) {
+            rootMatches++;
+        }
+    }
+
+    if (rootMatches != rootCandidates.size()) {
+        // TODO: error not all roots matched.
+        return false;
+    }
+
+    return true;
+}
+
+void Accumulator::BatchProof::print()
+{
+    std::cout << "targets: ";
+    print_vector(this->targets);
+
+    std::cout << "proof: ";
+    for (int i = 0; i < this->proof.size(); i++) {
+        std::cout << proof[i].GetHex().substr(60, 64) << ", ";
+    }
+
+    std::cout << std::endl;
 }
