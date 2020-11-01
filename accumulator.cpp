@@ -70,6 +70,12 @@ void Accumulator::add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& lea
 
 bool isSortedNoDupes(const std::vector<uint64_t>& targets)
 {
+    for (uint64_t i = 0; i < targets.size() - 1; i++) {
+        if (targets[i] >= targets[i + 1]) {
+            return false;
+        }
+    }
+
     return true;
 }
 
