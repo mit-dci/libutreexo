@@ -5,27 +5,27 @@
 #include <string.h>
 
 // Get the internal node from a std::shared_ptr<Accumulator::Node>.
-#define INTERNAL_NODE(accNode) (((Pollard::Node*)accNode.get())->node)
+#define INTERNAL_NODE(acc_node) (((Pollard::Node*)acc_node.get())->m_node)
 
 // Pollard
 
-std::vector<std::shared_ptr<Pollard::InternalNode>> Pollard::read(uint64_t pos, std::shared_ptr<Accumulator::Node>& reHashPath) const
+std::vector<std::shared_ptr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, std::shared_ptr<Accumulator::Node>& rehash_path) const
 {
     std::vector<std::shared_ptr<Pollard::InternalNode>> family;
     family.reserve(2);
 
     // Get the path to the position.
-    uint8_t tree, pathLength;
-    uint64_t pathBits;
-    std::tie(tree, pathLength, pathBits) = this->state.path(pos);
+    uint8_t tree, path_length;
+    uint64_t path_bits;
+    std::tie(tree, path_length, path_bits) = this->m_state.Path(pos);
 
     // There is no node above a root.
-    reHashPath = nullptr;
-    std::shared_ptr<Pollard::InternalNode> node = INTERNAL_NODE(this->mRoots[tree]),
-                                           sibling = INTERNAL_NODE(this->mRoots[tree]);
-    uint64_t nodePos = this->state.rootPositions()[tree];
+    rehash_path = nullptr;
+    std::shared_ptr<Pollard::InternalNode> node = INTERNAL_NODE(this->m_roots[tree]),
+                                           sibling = INTERNAL_NODE(this->m_roots[tree]);
+    uint64_t node_pos = this->m_state.RootPositions()[tree];
 
-    if (pathLength == 0) {
+    if (path_length == 0) {
         family.push_back(node);
         family.push_back(sibling);
         return family;
@@ -33,17 +33,17 @@ std::vector<std::shared_ptr<Pollard::InternalNode>> Pollard::read(uint64_t pos, 
 
 
     // Traverse the pollard until the desired position is reached.
-    for (uint8_t i = 0; i < pathLength; i++) {
-        uint8_t lr = (pathBits >> (pathLength - 1 - i)) & 1;
-        uint8_t lrSib = this->state.sibling(lr);
+    for (uint8_t i = 0; i < path_length; ++i) {
+        uint8_t lr = (path_bits >> (path_length - 1 - i)) & 1;
+        uint8_t lr_sib = this->m_state.Sibling(lr);
 
-        auto intNode = new Pollard::Node(this->state, nodePos, node, reHashPath, sibling);
-        reHashPath = std::shared_ptr<Accumulator::Node>((Accumulator::Node*)intNode);
+        auto int_node = new Pollard::Node(this->m_state, node_pos, node, rehash_path, sibling);
+        rehash_path = std::shared_ptr<Accumulator::Node>((Accumulator::Node*)int_node);
 
-        node = sibling->nieces[lrSib];
-        sibling = sibling->nieces[lr];
+        node = sibling->m_nieces[lr_sib];
+        sibling = sibling->m_nieces[lr];
 
-        nodePos = this->state.child(nodePos, lrSib);
+        node_pos = this->m_state.Child(node_pos, lr_sib);
     }
 
     family.push_back(node);
@@ -51,116 +51,117 @@ std::vector<std::shared_ptr<Pollard::InternalNode>> Pollard::read(uint64_t pos, 
     return family;
 }
 
-std::shared_ptr<Accumulator::Node> Pollard::swapSubTrees(uint64_t posA, uint64_t posB)
+std::shared_ptr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uint64_t to)
 {
     // TODO: get rid of tmp.
-    std::shared_ptr<Accumulator::Node> reHashPath, tmp;
-    std::vector<std::shared_ptr<InternalNode>> familyA, familyB;
-    familyA = this->read(posA, tmp);
-    familyB = this->read(posB, reHashPath);
+    std::shared_ptr<Accumulator::Node> rehash_path, tmp;
+    std::vector<std::shared_ptr<InternalNode>> family_from, family_to;
+    family_from = this->Read(from, tmp);
+    family_to = this->Read(to, rehash_path);
 
-    std::shared_ptr<InternalNode> nodeA, siblingA,
-        nodeB, siblingB;
-    nodeA = familyA.at(0);
-    siblingA = familyA.at(1);
-    nodeB = familyB.at(0);
-    siblingB = familyB.at(1);
+    std::shared_ptr<InternalNode> node_from, sibling_from,
+        node_to, sibling_to;
+    node_from = family_from.at(0);
+    sibling_from = family_from.at(1);
+    node_to = family_to.at(0);
+    sibling_to = family_to.at(1);
 
     // Swap the hashes of node a and b.
-    std::swap(nodeA->hash, nodeB->hash);
+    std::swap(node_from->m_hash, node_to->m_hash);
     // Swap the nieces of the siblings of a and b.
-    std::swap(siblingA->nieces, siblingB->nieces);
+    std::swap(sibling_from->m_nieces, sibling_to->m_nieces);
 
-    return reHashPath;
+    return rehash_path;
 }
 
-std::shared_ptr<Accumulator::Node> Pollard::newLeaf(uint256 hash)
+std::shared_ptr<Accumulator::Node> Pollard::NewLeaf(uint256 hash)
 {
-    auto intNode = std::shared_ptr<InternalNode>(new InternalNode(hash));
-    intNode->nieces[0] = intNode;
+    auto int_node = std::shared_ptr<InternalNode>(new InternalNode(hash));
+    // TODO: dont remember everything
+    int_node->m_nieces[0] = int_node;
 
-    this->mRoots.push_back(std::shared_ptr<Accumulator::Node>(
-        (Accumulator::Node*)new Pollard::Node(this->state, this->state.numLeaves, intNode)));
+    this->m_roots.push_back(std::shared_ptr<Accumulator::Node>(
+        (Accumulator::Node*)new Pollard::Node(this->m_state, this->m_state.m_num_leaves, int_node)));
 
-    return this->mRoots.back();
+    return this->m_roots.back();
 }
 
-std::shared_ptr<Accumulator::Node> Pollard::mergeRoot(uint64_t parentPos, uint256 parentHash)
+std::shared_ptr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, uint256 parent_hash)
 {
-    std::shared_ptr<InternalNode> intRight = INTERNAL_NODE(this->mRoots.back());
-    this->mRoots.pop_back();
-    std::shared_ptr<InternalNode> intLeft = INTERNAL_NODE(this->mRoots.back());
-    this->mRoots.pop_back();
+    std::shared_ptr<InternalNode> int_right = INTERNAL_NODE(this->m_roots.back());
+    this->m_roots.pop_back();
+    std::shared_ptr<InternalNode> int_left = INTERNAL_NODE(this->m_roots.back());
+    this->m_roots.pop_back();
 
     // swap nieces
-    std::swap(intLeft->nieces, intRight->nieces);
+    std::swap(int_left->m_nieces, int_right->m_nieces);
 
     // create internal node
-    auto intNode = std::shared_ptr<InternalNode>(new InternalNode(parentHash));
-    intNode->nieces[0] = intLeft;
-    intNode->nieces[1] = intRight;
-    intNode->prune();
+    auto int_node = std::shared_ptr<InternalNode>(new InternalNode(parent_hash));
+    int_node->m_nieces[0] = int_left;
+    int_node->m_nieces[1] = int_right;
+    int_node->Prune();
 
-    this->mRoots.push_back(std::shared_ptr<Accumulator::Node>(
-        (Accumulator::Node*)(new Pollard::Node(this->state, parentPos, intNode))));
+    this->m_roots.push_back(std::shared_ptr<Accumulator::Node>(
+        (Accumulator::Node*)(new Pollard::Node(this->m_state, parent_pos, int_node))));
 
-    return this->mRoots.back();
+    return this->m_roots.back();
 }
 
-void Pollard::finalizeRemove(const ForestState nextState)
+void Pollard::FinalizeRemove(const ForestState next_state)
 {
     // Compute the positions of the new roots in the current state.
-    std::vector<uint64_t> newPositions = this->state.rootPositions(nextState.numLeaves);
+    std::vector<uint64_t> new_positions = this->m_state.RootPositions(next_state.m_num_leaves);
 
     // Select the new roots.
-    std::vector<std::shared_ptr<Accumulator::Node>> newRoots;
-    newRoots.reserve(newPositions.size());
+    std::vector<std::shared_ptr<Accumulator::Node>> new_roots;
+    new_roots.reserve(new_positions.size());
 
-    for (uint64_t newPos : newPositions) {
-        std::shared_ptr<Accumulator::Node> unusedPath = nullptr;
-        std::vector<std::shared_ptr<InternalNode>> family = this->read(newPos, unusedPath);
-        newRoots.push_back(std::shared_ptr<Accumulator::Node>(
-            (Accumulator::Node*)new Pollard::Node(this->state, newPos, family.at(0))));
+    for (uint64_t new_pos : new_positions) {
+        std::shared_ptr<Accumulator::Node> unused_path = nullptr;
+        std::vector<std::shared_ptr<InternalNode>> family = this->Read(new_pos, unused_path);
+        new_roots.push_back(std::shared_ptr<Accumulator::Node>(
+            (Accumulator::Node*)new Pollard::Node(this->m_state, new_pos, family.at(0))));
     }
 
-    this->mRoots = newRoots;
+    this->m_roots = new_roots;
 }
 
 // Pollard::Node
 
-const uint256& Pollard::Node::hash() const
+const uint256& Pollard::Node::Hash() const
 {
-    return this->node->hash;
+    return this->m_node->m_hash;
 }
 
-void Pollard::Node::reHash()
+void Pollard::Node::ReHash()
 {
-    if (!this->sibling->nieces[0] || !this->sibling->nieces[1]) {
+    if (!this->m_sibling->m_nieces[0] || !this->m_sibling->m_nieces[1]) {
         // TODO: error could not rehash one of the children is not known.
         // This will happen if there are duplicates in the dirtyNodes in Accumulator::remove.
         return;
     }
 
-    this->node->hash = Accumulator::parentHash(this->sibling->nieces[0]->hash, this->sibling->nieces[1]->hash);
-    this->sibling->prune();
+    this->m_node->m_hash = Accumulator::ParentHash(this->m_sibling->m_nieces[0]->m_hash, this->m_sibling->m_nieces[1]->m_hash);
+    this->m_sibling->Prune();
 }
 
 // Pollard::InternalNode
 
-void Pollard::InternalNode::prune()
+void Pollard::InternalNode::Prune()
 {
-    if (!this->nieces[0] || this->nieces[0]->deadEnd()) {
-        this->nieces[0] = nullptr;
+    if (!this->m_nieces[0] || this->m_nieces[0]->DeadEnd()) {
+        this->m_nieces[0] = nullptr;
     }
 
-    if (!this->nieces[1] || this->nieces[1]->deadEnd()) {
-        this->nieces[1] = nullptr;
+    if (!this->m_nieces[1] || this->m_nieces[1]->DeadEnd()) {
+        this->m_nieces[1] = nullptr;
     }
 }
 
-bool Pollard::InternalNode::deadEnd()
+bool Pollard::InternalNode::DeadEnd()
 {
-    return !this->nieces[0] && !this->nieces[1];
+    return !this->m_nieces[0] && !this->m_nieces[1];
 }
 
 Pollard::InternalNode::~InternalNode() {}

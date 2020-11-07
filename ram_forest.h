@@ -9,41 +9,42 @@ class RamForest : public Accumulator
 {
 private:
     // for each row store pointers to the hashes
-    std::vector<std::vector<uint256>> data;
+    std::vector<std::vector<uint256>> m_data;
 
-    const uint256 read(uint64_t pos) const;
-    void swapRange(uint64_t from, uint64_t to, uint64_t range);
+    const uint256 Read(uint64_t pos) const;
+    void SwapRange(uint64_t from, uint64_t to, uint64_t range);
 
 protected:
     class Node : public Accumulator::Node
     {
     private:
-        uint256 h;
-        RamForest* forest;
+        uint256 m_hash;
+        // TODO: yikes.
+        RamForest* m_forest;
 
     public:
         Node(RamForest* forest, uint64_t pos, uint256 h)
-            : Accumulator::Node(forest->state, pos), h(h), forest(forest) {}
+            : Accumulator::Node(forest->m_state, pos), m_hash(h), m_forest(forest) {}
 
-        const uint256& hash() const override;
-        void reHash() override;
-        std::shared_ptr<Accumulator::Node> parent() const override;
+        const uint256& Hash() const override;
+        void ReHash() override;
+        std::shared_ptr<Accumulator::Node> Parent() const override;
     };
 
-    std::shared_ptr<Accumulator::Node> swapSubTrees(uint64_t posA, uint64_t posB) override;
-    std::shared_ptr<Accumulator::Node> mergeRoot(uint64_t parentPos, uint256 parentHash) override;
-    std::shared_ptr<Accumulator::Node> newLeaf(uint256 hash) override;
-    void finalizeRemove(const ForestState nextState) override;
+    std::shared_ptr<Accumulator::Node> SwapSubTrees(uint64_t from, uint64_t to) override;
+    std::shared_ptr<Accumulator::Node> MergeRoot(uint64_t parent_pos, uint256 parent_hash) override;
+    std::shared_ptr<Accumulator::Node> NewLeaf(uint256 hash) override;
+    void FinalizeRemove(const ForestState next_state) override;
 
 public:
     RamForest(ForestState& state) : Accumulator(state)
     {
-        this->data = std::vector<std::vector<uint256>>();
-        this->data.push_back(std::vector<uint256>());
+        this->m_data = std::vector<std::vector<uint256>>();
+        this->m_data.push_back(std::vector<uint256>());
     }
 
-    const Accumulator::BatchProof prove(const std::vector<uint64_t>& targets) const override;
-    void add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves) override;
+    const Accumulator::BatchProof Prove(const std::vector<uint64_t>& targets) const override;
+    void Add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves) override;
 };
 
 #endif // UTREEXO_RAMFOREST_H

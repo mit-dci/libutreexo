@@ -4,25 +4,25 @@
 #include <stdio.h>
 #include <uint256.h>
 
-void Accumulator::modify(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves, const std::vector<uint64_t>& targets)
+void Accumulator::Modify(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves, const std::vector<uint64_t>& targets)
 {
-    this->remove(targets);
-    this->add(leaves);
+    this->Remove(targets);
+    this->Add(leaves);
 }
 
-const std::vector<uint256> Accumulator::roots() const
+const std::vector<uint256> Accumulator::Roots() const
 {
     std::vector<uint256> result;
-    result.reserve(this->mRoots.size());
+    result.reserve(this->m_roots.size());
 
-    for (auto root : this->mRoots) {
-        result.push_back(root->hash());
+    for (auto root : this->m_roots) {
+        result.push_back(root->Hash());
     }
 
     return result;
 }
 
-uint256 Accumulator::parentHash(const uint256& left, const uint256& right)
+uint256 Accumulator::ParentHash(const uint256& left, const uint256& right)
 {
     CSHA256 hasher;
 
@@ -33,37 +33,37 @@ uint256 Accumulator::parentHash(const uint256& left, const uint256& right)
     hasher.Write(data, 64);
 
     // finalize the hash and write it into parentHash
-    uint256 parentHash;
-    hasher.Finalize(parentHash.begin());
+    uint256 parent_hash;
+    hasher.Finalize(parent_hash.begin());
 
-    return parentHash;
+    return parent_hash;
 }
 
-void Accumulator::printRoots(const std::vector<std::shared_ptr<Accumulator::Node>>& roots) const
+void Accumulator::PrintRoots(const std::vector<std::shared_ptr<Accumulator::Node>>& roots) const
 {
     for (auto root : roots) {
-        std::cout << "root: " << root->position << ":" << root->hash().GetHex() << std::endl;
+        std::cout << "root: " << root->m_position << ":" << root->Hash().GetHex() << std::endl;
     }
 }
 
-void Accumulator::add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves)
+void Accumulator::Add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves)
 {
-    for (auto leaf = leaves.begin(); leaf < leaves.end(); leaf++) {
-        int root = this->mRoots.size() - 1;
-        std::shared_ptr<Accumulator::Node> newRoot = this->newLeaf((*leaf)->hash());
+    for (auto leaf = leaves.begin(); leaf < leaves.end(); ++leaf) {
+        int root = this->m_roots.size() - 1;
+        std::shared_ptr<Accumulator::Node> new_root = this->NewLeaf((*leaf)->Hash());
 
-        for (uint8_t row = 0; this->state.hasRoot(row); row++) {
-            uint64_t parentPos = this->state.parent(newRoot->position);
-            uint256 hash = Accumulator::parentHash(this->mRoots[root]->hash(), newRoot->hash());
-            newRoot = this->mergeRoot(parentPos, hash);
+        for (uint8_t row = 0; this->m_state.HasRoot(row); ++row) {
+            uint64_t parent_pos = this->m_state.Parent(new_root->m_position);
+            uint256 hash = Accumulator::ParentHash(this->m_roots[root]->Hash(), new_root->Hash());
+            new_root = this->MergeRoot(parent_pos, hash);
             // Decreasing because we are going in reverse order.
-            root--;
+            --root;
         }
 
         // Update the state by adding one leaf.
-        uint8_t prevRows = this->state.numRows();
-        this->state.add(1);
-        if (prevRows == 0 || prevRows == this->state.numRows()) {
+        uint8_t prev_rows = this->m_state.NumRows();
+        this->m_state.Add(1);
+        if (prev_rows == 0 || prev_rows == this->m_state.NumRows()) {
             continue;
         }
 
@@ -71,18 +71,18 @@ void Accumulator::add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& lea
         // This only need happen if the number of rows in the forest changes.
         // In this case there will always be exactly two roots, one on row 0 and one
         // on the next-to-last row.
-        this->mRoots[1]->position = this->state.rootPosition(0);
-        this->mRoots[0]->position = this->state.rootPosition(this->state.numRows() - 1);
+        this->m_roots[1]->m_position = this->m_state.RootPosition(0);
+        this->m_roots[0]->m_position = this->m_state.RootPosition(this->m_state.NumRows() - 1);
     }
 
     std::cout << "roots after adding:" << std::endl;
-    print_vector(this->state.rootPositions());
-    printRoots(this->mRoots);
+    print_vector(this->m_state.RootPositions());
+    this->PrintRoots(this->m_roots);
 }
 
-bool isSortedNoDupes(const std::vector<uint64_t>& targets)
+bool IsSortedNoDupes(const std::vector<uint64_t>& targets)
 {
-    for (uint64_t i = 0; i < targets.size() - 1; i++) {
+    for (uint64_t i = 0; i < targets.size() - 1; ++i) {
         if (targets[i] >= targets[i + 1]) {
             return false;
         }
@@ -91,148 +91,148 @@ bool isSortedNoDupes(const std::vector<uint64_t>& targets)
     return true;
 }
 
-void Accumulator::remove(const std::vector<uint64_t>& targets)
+void Accumulator::Remove(const std::vector<uint64_t>& targets)
 {
     if (targets.size() == 0) {
         return;
     }
 
-    if (this->state.numLeaves < targets.size()) {
+    if (this->m_state.m_num_leaves < targets.size()) {
         // TODO: error deleting more targets than elemnts in the accumulator.
         return;
     }
 
-    if (!isSortedNoDupes(targets)) {
+    if (!IsSortedNoDupes(targets)) {
         // TODO: error targets are not sorted or contain duplicates.
         return;
     }
 
-    if (targets.back() >= this->state.numLeaves) {
+    if (targets.back() >= this->m_state.m_num_leaves) {
         // TODO: error targets not in the accumulator.
         return;
     }
 
-    std::vector<std::vector<ForestState::Swap>> swaps = this->state.transform(targets);
+    std::vector<std::vector<ForestState::Swap>> swaps = this->m_state.Transform(targets);
     // Store the nodes that have to be rehashed because their children changed.
     // These nodes are "dirty".
-    std::vector<std::shared_ptr<Accumulator::Node>> dirtyNodes;
+    std::vector<std::shared_ptr<Accumulator::Node>> dirty_nodes;
 
-    for (uint8_t row = 0; row < this->state.numRows(); row++) {
-        std::vector<std::shared_ptr<Accumulator::Node>> nextDirtyNodes;
+    for (uint8_t row = 0; row < this->m_state.NumRows(); ++row) {
+        std::vector<std::shared_ptr<Accumulator::Node>> next_dirty_nodes;
         if (row < swaps.size()) {
             // Execute all the swaps in this row.
             for (const ForestState::Swap swap : swaps.at(row)) {
-                std::shared_ptr<Accumulator::Node> swapDirt = this->swapSubTrees(swap.from, swap.to);
-                dirtyNodes.push_back(swapDirt);
+                std::shared_ptr<Accumulator::Node> swap_dirt = this->SwapSubTrees(swap.m_from, swap.m_to);
+                dirty_nodes.push_back(swap_dirt);
             }
         }
 
         // Rehash all the dirt after swapping.
-        for (std::shared_ptr<Accumulator::Node> dirt : dirtyNodes) {
-            dirt->reHash();
-            std::shared_ptr<Accumulator::Node> parent = dirt->parent();
-            if (parent && (nextDirtyNodes.size() == 0 || nextDirtyNodes.back()->position != parent->position)) {
-                nextDirtyNodes.push_back(parent);
+        for (std::shared_ptr<Accumulator::Node> dirt : dirty_nodes) {
+            dirt->ReHash();
+            std::shared_ptr<Accumulator::Node> parent = dirt->Parent();
+            if (parent && (next_dirty_nodes.size() == 0 || next_dirty_nodes.back()->m_position != parent->m_position)) {
+                next_dirty_nodes.push_back(parent);
             }
         }
 
-        dirtyNodes = nextDirtyNodes;
+        dirty_nodes = next_dirty_nodes;
     }
 
-    ForestState nextState(this->state.numLeaves - targets.size());
-    this->finalizeRemove(nextState);
-    this->state.remove(targets.size());
+    ForestState nextState(this->m_state.m_num_leaves - targets.size());
+    this->FinalizeRemove(nextState);
+    this->m_state.Remove(targets.size());
 }
 
 // Accumulator::BatchProof
-bool Accumulator::BatchProof::verify(ForestState state, const std::vector<uint256> roots, const std::vector<uint256> targetHashes) const
+bool Accumulator::BatchProof::Verify(ForestState state, const std::vector<uint256> roots, const std::vector<uint256> target_hashes) const
 {
-    if (this->targets.size() != targetHashes.size()) {
+    if (this->targets.size() != target_hashes.size()) {
         // TODO: error the number of targets does not math the number of provided hashes.
         return false;
     }
 
-    std::vector<uint64_t> proofPositions, computablePositions;
-    std::tie(proofPositions, computablePositions) = state.proofPositions(this->targets);
+    std::vector<uint64_t> proof_positions, computable_positions;
+    std::tie(proof_positions, computable_positions) = state.ProofPositions(this->targets);
 
-    if (proofPositions.size() != this->proof.size()) {
+    if (proof_positions.size() != this->proof.size()) {
         //TODO: error the number of proof hashes does not math the required number
         return false;
     }
 
-    // targetNodes holds nodes that are known, on the bottom row those
+    // target_nodes holds nodes that are known, on the bottom row those
     // are the targets, on the upper rows it holds computed nodes.
-    std::vector<std::pair<uint64_t, uint256>> targetNodes;
-    targetNodes.reserve(targets.size() * state.numRows());
-    for (uint64_t i = 0; i < this->targets.size(); i++) {
-        targetNodes.push_back(std::make_pair(this->targets[i], targetHashes[i]));
+    std::vector<std::pair<uint64_t, uint256>> target_nodes;
+    target_nodes.reserve(targets.size() * state.NumRows());
+    for (uint64_t i = 0; i < this->targets.size(); ++i) {
+        target_nodes.push_back(std::make_pair(this->targets[i], target_hashes[i]));
     }
 
-    // rootCandidates holds the roots that were computed and have to be
+    // root_candidates holds the roots that were computed and have to be
     // compared to the actual roots at the end.
-    std::vector<uint256> rootCandidates;
-    rootCandidates.reserve(roots.size());
+    std::vector<uint256> root_candidates;
+    root_candidates.reserve(roots.size());
 
     // Handle the row 0 root.
-    if (state.hasRoot(0) && this->targets.back() == state.rootPosition(0)) {
-        rootCandidates.push_back(targetNodes.back().second);
-        targetNodes.pop_back();
+    if (state.HasRoot(0) && this->targets.back() == state.RootPosition(0)) {
+        root_candidates.push_back(target_nodes.back().second);
+        target_nodes.pop_back();
     }
 
-    uint64_t proofIndex = 0;
-    for (uint64_t targetIndex = 0; targetIndex < targetNodes.size();) {
-        std::pair<uint64_t, uint256> target = targetNodes[targetIndex], proof;
+    uint64_t proof_index = 0;
+    for (uint64_t target_index = 0; target_index < target_nodes.size();) {
+        std::pair<uint64_t, uint256> target = target_nodes[target_index], proof;
 
-        // Find the proof node. It will either be in the batch proof or in targetNodes.
-        if (proofIndex < proofPositions.size() && state.sibling(target.first) == proofPositions[proofIndex]) {
+        // Find the proof node. It will either be in the batch proof or in target_nodes.
+        if (proof_index < proof_positions.size() && state.Sibling(target.first) == proof_positions[proof_index]) {
             // target has its sibling in the proof.
-            proof = std::make_pair(proofPositions[proofIndex], this->proof[proofIndex]);
-            proofIndex++;
-            targetIndex++;
+            proof = std::make_pair(proof_positions[proof_index], this->proof[proof_index]);
+            ++proof_index;
+            ++target_index;
         } else {
-            if (targetIndex + 1 >= targetNodes.size()) {
+            if (target_index + 1 >= target_nodes.size()) {
                 // TODO: error the sibling was expected to be in the targets but it was not.
                 return false;
             }
             // target has its sibling in the targets.
-            proof = targetNodes[targetIndex + 1];
-            // Advance by two because both the target and the proof where found in targetNodes.
-            targetIndex += 2;
+            proof = target_nodes[target_index + 1];
+            // Advance by two because both the target and the proof where found in target_nodes.
+            target_index += 2;
         }
 
         auto left = target, right = proof;
-        if (state.rightSibling(left.first) == left.first) {
+        if (state.RightSibling(left.first) == left.first) {
             // Left was actually right and right was actually left.
             std::swap(left, right);
         }
 
         // Compute the parent hash.
-        uint64_t parentPos = state.parent(left.first);
-        uint256 parentHash = Accumulator::parentHash(left.second, right.second);
+        uint64_t parent_pos = state.Parent(left.first);
+        uint256 parent_hash = Accumulator::ParentHash(left.second, right.second);
 
-        uint64_t parentRow = state.detectRow(parentPos);
-        if (state.hasRoot(parentRow) && parentPos == state.rootPosition(parentRow)) {
+        uint64_t parent_row = state.DetectRow(parent_pos);
+        if (state.HasRoot(parent_row) && parent_pos == state.RootPosition(parent_row)) {
             // Store the parent as a root candidate.
-            rootCandidates.push_back(parentHash);
+            root_candidates.push_back(parent_hash);
             continue;
         }
 
-        targetNodes.push_back(std::make_pair(parentPos, parentHash));
+        target_nodes.push_back(std::make_pair(parent_pos, parent_hash));
     }
 
-    if (rootCandidates.size() == 0) {
+    if (root_candidates.size() == 0) {
         // TODO: error no roots to verify
         return false;
     }
 
     uint8_t rootMatches = 0;
     for (uint256 root : roots) {
-        if (rootCandidates.size() > rootMatches && root.Compare(rootCandidates[rootMatches]) == 0) {
-            rootMatches++;
+        if (root_candidates.size() > rootMatches && root.Compare(root_candidates[rootMatches]) == 0) {
+            ++rootMatches;
         }
     }
 
-    if (rootMatches != rootCandidates.size()) {
+    if (rootMatches != root_candidates.size()) {
         // TODO: error not all roots matched.
         return false;
     }
@@ -240,13 +240,13 @@ bool Accumulator::BatchProof::verify(ForestState state, const std::vector<uint25
     return true;
 }
 
-void Accumulator::BatchProof::print()
+void Accumulator::BatchProof::Print()
 {
     std::cout << "targets: ";
     print_vector(this->targets);
 
     std::cout << "proof: ";
-    for (int i = 0; i < this->proof.size(); i++) {
+    for (int i = 0; i < this->proof.size(); ++i) {
         std::cout << proof[i].GetHex().substr(60, 64) << ", ";
     }
 

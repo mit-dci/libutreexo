@@ -5,7 +5,7 @@
 #include <ram_forest.h>
 #include <state.h>
 #include <uint256.h>
-BOOST_AUTO_TEST_SUITE(AccumulatorTests)
+BOOST_AUTO_TEST_SUITE(accumulator_tests)
 
 class TestLeaf : public Accumulator::Leaf
 {
@@ -18,12 +18,12 @@ public:
         h.begin()[0] = num;
     }
 
-    uint256 hash() const
+    uint256 Hash() const
     {
         return h;
     }
 
-    bool remember() const
+    bool Remember() const
     {
         return false;
     }
@@ -38,9 +38,9 @@ BOOST_AUTO_TEST_CASE(simple_full)
     for (int i = 0; i < 15; i++) {
         leaves.push_back(std::shared_ptr<Accumulator::Leaf>((Accumulator::Leaf*)new TestLeaf(i + 1)));
     }
-    full->modify(leaves, std::vector<uint64_t>());
+    full->Modify(leaves, std::vector<uint64_t>());
     leaves.clear();
-    full->modify(leaves, {0, 2, 3, 9});
+    full->Modify(leaves, {0, 2, 3, 9});
     delete full;
 }
 
@@ -53,9 +53,9 @@ BOOST_AUTO_TEST_CASE(simple_pruned)
     for (int i = 0; i < 15; i++) {
         leaves.push_back(std::shared_ptr<Accumulator::Leaf>((Accumulator::Leaf*)new TestLeaf(i + 1)));
     }
-    pruned->modify(leaves, std::vector<uint64_t>());
+    pruned->Modify(leaves, std::vector<uint64_t>());
     leaves.clear();
-    pruned->modify(leaves, {0, 2, 3, 9});
+    pruned->Modify(leaves, {0, 2, 3, 9});
 
     delete pruned;
 }
@@ -69,21 +69,21 @@ BOOST_AUTO_TEST_CASE(simple_verify)
     for (int i = 0; i < 15; i++) {
         leaves.push_back(std::shared_ptr<Accumulator::Leaf>((Accumulator::Leaf*)new TestLeaf(i + 1)));
     }
-    full->modify(leaves, std::vector<uint64_t>());
+    full->Modify(leaves, std::vector<uint64_t>());
 
-    Accumulator::BatchProof proof = full->prove({0, 2, 3, 9});
-    proof.print();
+    Accumulator::BatchProof proof = full->Prove({0, 2, 3, 9});
+    proof.Print();
 
-    auto roots = full->roots();
+    auto roots = full->Roots();
     std::reverse(roots.begin(), roots.end());
 
-    std::vector<uint256> targetHashes;
-    targetHashes.push_back(leaves.at(0)->hash());
-    targetHashes.push_back(leaves.at(2)->hash());
-    targetHashes.push_back(leaves.at(3)->hash());
-    targetHashes.push_back(leaves.at(9)->hash());
+    std::vector<uint256> target_hashes;
+    target_hashes.push_back(leaves.at(0)->Hash());
+    target_hashes.push_back(leaves.at(2)->Hash());
+    target_hashes.push_back(leaves.at(3)->Hash());
+    target_hashes.push_back(leaves.at(9)->Hash());
 
-    BOOST_CHECK(proof.verify(state, roots, targetHashes));
+    BOOST_CHECK(proof.Verify(state, roots, target_hashes));
 
     delete full;
 }

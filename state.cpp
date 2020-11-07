@@ -14,7 +14,7 @@ void print_vector(const std::vector<uint64_t>& vec)
 void print_swaps(const std::vector<ForestState::Swap>& vec)
 {
     for (auto i : vec)
-        std::cout << i.collapse << " (" << i.from << ", " << i.to << ") ";
+        std::cout << i.m_collapse << " (" << i.m_from << ", " << i.m_to << ") ";
     std::cout << std::endl;
 }
 
@@ -22,7 +22,7 @@ void print_swaps(const std::vector<ForestState::Swap>& vec)
 uint8_t trailingOnes(uint64_t n)
 {
     uint64_t b = ~n & (n + 1);
-    b--;
+    --b;
     b = (b & 0x5555555555555555) +
         ((b >> 1) & 0x5555555555555555);
     b = (b & 0x3333333333333333) +
@@ -45,59 +45,59 @@ uint8_t trailingZeros(uint64_t n)
 }
 
 // TODO: Maybe export these?
-uint64_t _rootPosition(uint8_t row, uint64_t numLeaves, uint8_t rows);
-uint8_t _numRows(uint64_t numLeaves);
-uint8_t _hasRoot(uint64_t numLeaves);
-uint64_t _maxNodes(uint64_t numLeaves);
+uint64_t _rootPosition(uint8_t row, uint64_t num_leaves, uint8_t rows);
+uint8_t _numRows(uint64_t num_leaves);
+uint8_t _hasRoot(uint64_t num_leaves);
+uint64_t _maxNodes(uint64_t num_leaves);
 
 // positions
 
-uint64_t ForestState::parent(uint64_t pos) const
+uint64_t ForestState::Parent(uint64_t pos) const
 {
-    return (pos >> 1) | (1 << this->numRows());
+    return (pos >> 1) | (1 << this->NumRows());
 }
 
-uint64_t ForestState::ancestor(uint64_t pos, uint8_t rise) const
+uint64_t ForestState::Ancestor(uint64_t pos, uint8_t rise) const
 {
     if (rise == 0) {
         return pos;
     }
 
-    uint8_t rows = this->numRows();
-    uint64_t mask = this->maxNodes();
+    uint8_t rows = this->NumRows();
+    uint64_t mask = this->MaxNodes();
     return (pos >> rise | (mask << (rows - (rise - 1)))) & mask;
 }
 
-uint64_t ForestState::leftChild(uint64_t pos) const
+uint64_t ForestState::LeftChild(uint64_t pos) const
 {
-    return (pos << 1) & (this->maxNodes());
+    return (pos << 1) & (this->MaxNodes());
 }
 
-uint64_t ForestState::child(uint64_t pos, uint64_t placement) const
+uint64_t ForestState::Child(uint64_t pos, uint64_t placement) const
 {
-    return this->leftChild(pos) | placement;
+    return this->LeftChild(pos) | placement;
 }
 
-uint64_t ForestState::leftDescendant(uint64_t pos, uint8_t drop) const
+uint64_t ForestState::LeftDescendant(uint64_t pos, uint8_t drop) const
 {
     if (drop == 0) {
         return pos;
     }
 
-    uint64_t mask = this->maxNodes();
+    uint64_t mask = this->MaxNodes();
     return (pos << drop) & mask;
 }
 
-uint64_t ForestState::cousin(uint64_t pos) const { return pos ^ 2; }
+uint64_t ForestState::Cousin(uint64_t pos) const { return pos ^ 2; }
 
-uint64_t ForestState::rightSibling(uint64_t pos) const { return pos | 1; }
+uint64_t ForestState::RightSibling(uint64_t pos) const { return pos | 1; }
 
-uint64_t ForestState::sibling(uint64_t pos) const { return pos ^ 1; }
+uint64_t ForestState::Sibling(uint64_t pos) const { return pos ^ 1; }
 
-std::tuple<uint8_t, uint8_t, uint64_t> ForestState::path(uint64_t pos) const
+std::tuple<uint8_t, uint8_t, uint64_t> ForestState::Path(uint64_t pos) const
 {
-    uint8_t rows = this->numRows();
-    uint8_t row = this->detectRow(pos);
+    uint8_t rows = this->NumRows();
+    uint8_t row = this->DetectRow(pos);
 
     // This is a bit of an ugly predicate.  The goal is to detect if we've
     // gone past the node we're looking for by inspecting progressively shorter
@@ -106,7 +106,7 @@ std::tuple<uint8_t, uint8_t, uint64_t> ForestState::path(uint64_t pos) const
     // The predicate breaks down into 3 main terms:
     // A: pos << nh
     // B: mask
-    // C: 1<<th & numleaves (treeSize)
+    // C: 1<<th & num_leaves (treeSize)
     // The predicate is then if (A&B >= C)
     // A is position up-shifted by the row of the node we're targeting.
     // B is the "mask" we use in other functions; a bunch of 0s at the MSB side
@@ -124,12 +124,12 @@ std::tuple<uint8_t, uint8_t, uint64_t> ForestState::path(uint64_t pos) const
     // skipping trees that don't exist.
 
     uint8_t biggerTrees = 0;
-    for (; ((pos << row) & ((2 << rows) - 1)) >= ((1 << rows) & this->numLeaves);
-         rows--) {
-        uint64_t treeSize = (1 << rows) & this->numLeaves;
+    for (; ((pos << row) & ((2 << rows) - 1)) >= ((1 << rows) & this->m_num_leaves);
+         --rows) {
+        uint64_t treeSize = (1 << rows) & this->m_num_leaves;
         if (treeSize != 0) {
             pos -= treeSize;
-            biggerTrees++;
+            ++biggerTrees;
         }
     }
 
@@ -137,9 +137,9 @@ std::tuple<uint8_t, uint8_t, uint64_t> ForestState::path(uint64_t pos) const
 }
 
 std::pair<std::vector<uint64_t>, std::vector<uint64_t>>
-ForestState::proofPositions(const std::vector<uint64_t>& targets) const
+ForestState::ProofPositions(const std::vector<uint64_t>& targets) const
 {
-    uint64_t rows = this->numRows();
+    uint64_t rows = this->NumRows();
 
     // store for the proof and computed positions
     // proof positions are needed to verify,
@@ -153,13 +153,13 @@ ForestState::proofPositions(const std::vector<uint64_t>& targets) const
     // saves the reference to nextTargets in the loop from being destroyed
     std::shared_ptr<std::vector<uint64_t>> savior;
 
-    for (uint8_t row = 0; row < rows; row++) {
+    for (uint8_t row = 0; row < rows; ++row) {
         computed.insert(computed.end(), start, end);
 
-        if (this->hasRoot(row) && start < end &&
-            *(end - 1) == this->rootPosition(row)) {
+        if (this->HasRoot(row) && start < end &&
+            *(end - 1) == this->RootPosition(row)) {
             // remove roots from targets
-            end--;
+            --end;
         }
 
         std::shared_ptr<std::vector<uint64_t>> nextTargets(
@@ -169,64 +169,64 @@ ForestState::proofPositions(const std::vector<uint64_t>& targets) const
             int size = end - start;
 
             // look at the first 4 targets
-            if (size > 3 && this->cousin(this->rightSibling(start[0])) ==
-                                this->rightSibling(start[3])) {
+            if (size > 3 && this->Cousin(this->RightSibling(start[0])) ==
+                                this->RightSibling(start[3])) {
                 // the first and fourth target are cousins
                 // => target 2 and 3 are also targets, both parents are targets of next
                 // row
                 nextTargets->insert(nextTargets->end(),
-                                    {this->parent(start[0]), this->parent(start[3])});
+                                    {this->Parent(start[0]), this->Parent(start[3])});
                 start += 4;
                 continue;
             }
 
             // look at the first 3 targets
-            if (size > 2 && this->cousin(this->rightSibling(start[0])) ==
-                                this->rightSibling(start[2])) {
+            if (size > 2 && this->Cousin(this->RightSibling(start[0])) ==
+                                this->RightSibling(start[2])) {
                 // the first and third target are cousins
                 // => the second target is either the sibling of the first
                 // OR the sibiling of the third
                 // => only the sibling that is not a target is appended to the proof positions
-                if (this->rightSibling(start[1]) == this->rightSibling(start[0])) {
-                    proof.push_back(this->sibling(start[2]));
+                if (this->RightSibling(start[1]) == this->RightSibling(start[0])) {
+                    proof.push_back(this->Sibling(start[2]));
                 } else {
-                    proof.push_back(this->sibling(start[0]));
+                    proof.push_back(this->Sibling(start[0]));
                 }
 
                 nextTargets->insert(nextTargets->end(),
-                                    {this->parent(start[0]), this->parent(start[2])});
+                                    {this->Parent(start[0]), this->Parent(start[2])});
                 start += 3;
                 continue;
             }
 
             // look at the first 2 targets
             if (size > 1) {
-                if (this->rightSibling(start[0]) == start[1]) {
+                if (this->RightSibling(start[0]) == start[1]) {
                     // the first and the second target are siblings
                     // => parent is a target for the next.
-                    nextTargets->push_back(this->parent(start[0]));
+                    nextTargets->push_back(this->Parent(start[0]));
                     start += 2;
                     continue;
                 }
 
-                if (this->cousin(this->rightSibling(start[0])) ==
-                    this->rightSibling(start[1])) {
+                if (this->Cousin(this->RightSibling(start[0])) ==
+                    this->RightSibling(start[1])) {
                     // the first and the second target are cousins
                     // => both siblings are part of the proof
                     // => both parents are targets for the next row
                     proof.insert(proof.end(),
-                                 {this->sibling(start[0]), this->sibling(start[1])});
+                                 {(start[0]), (start[1])});
                     nextTargets->insert(nextTargets->end(),
-                                        {this->parent(start[0]), this->parent(start[1])});
+                                        {this->Parent(start[0]), this->Parent(start[1])});
                     start += 2;
                     continue;
                 }
             }
 
             // look at the first target
-            proof.push_back(this->sibling(start[0]));
-            nextTargets->push_back(this->parent(start[0]));
-            start++;
+            proof.push_back(this->Sibling(start[0]));
+            nextTargets->push_back(this->Parent(start[0]));
+            ++start;
         }
 
         start = nextTargets->cbegin();
@@ -239,60 +239,60 @@ ForestState::proofPositions(const std::vector<uint64_t>& targets) const
 
 // roots
 
-uint8_t ForestState::numRoots() const
+uint8_t ForestState::NumRoots() const
 {
-    std::bitset<64> bits(this->numLeaves);
+    std::bitset<64> bits(this->m_num_leaves);
     return bits.count();
 }
 
-bool _hasRoot(uint64_t numLeaves, uint8_t row)
+bool _hasRoot(uint64_t num_leaves, uint8_t row)
 {
-    return (numLeaves >> row) & 1;
+    return (num_leaves >> row) & 1;
 }
 
-bool ForestState::hasRoot(uint8_t row) const
+bool ForestState::HasRoot(uint8_t row) const
 {
-    return _hasRoot(this->numLeaves, row);
+    return _hasRoot(this->m_num_leaves, row);
 }
 
-uint64_t _rootPosition(uint8_t row, uint64_t numLeaves, uint8_t rows)
+uint64_t _rootPosition(uint8_t row, uint64_t num_leaves, uint8_t rows)
 {
-    uint64_t mask = _maxNodes(numLeaves);
-    uint64_t before = numLeaves & (mask << (row + 1));
+    uint64_t mask = _maxNodes(num_leaves);
+    uint64_t before = num_leaves & (mask << (row + 1));
     uint64_t shifted = (before >> row) | (mask << (rows - (row - 1)));
     return shifted & mask;
 }
 
-uint64_t ForestState::rootPosition(uint8_t row) const
+uint64_t ForestState::RootPosition(uint8_t row) const
 {
-    return _rootPosition(row, this->numLeaves, this->numRows());
+    return _rootPosition(row, this->m_num_leaves, this->NumRows());
 }
 
-std::vector<uint64_t> ForestState::rootPositions() const
+std::vector<uint64_t> ForestState::RootPositions() const
 {
     std::vector<uint64_t> roots;
-    for (uint8_t row = this->numRows(); row >= 0 && row < 64; row--) {
-        if (this->hasRoot(row)) {
-            roots.push_back(this->rootPosition(row));
+    for (uint8_t row = this->NumRows(); row >= 0 && row < 64; --row) {
+        if (this->HasRoot(row)) {
+            roots.push_back(this->RootPosition(row));
         }
     }
     return roots;
 }
 
-std::vector<uint64_t> ForestState::rootPositions(uint64_t numLeaves) const
+std::vector<uint64_t> ForestState::RootPositions(uint64_t num_leaves) const
 {
     std::vector<uint64_t> roots;
-    for (uint8_t row = this->numRows(); row >= 0 && row < 64; row--) {
-        if (_hasRoot(numLeaves, row)) {
-            roots.push_back(_rootPosition(row, numLeaves, this->numRows()));
+    for (uint8_t row = this->NumRows(); row >= 0 && row < 64; --row) {
+        if (_hasRoot(num_leaves, row)) {
+            roots.push_back(_rootPosition(row, num_leaves, this->NumRows()));
         }
     }
     return roots;
 }
+
 // rows
 
-
-uint8_t _numRows(uint64_t numLeaves)
+uint8_t _numRows(uint64_t num_leaves)
 {
     // numRows works by:
     // 1. Find the next power of 2 from the given n leaves.
@@ -309,15 +309,15 @@ uint8_t _numRows(uint64_t numLeaves)
 
     // Find the next power of 2
 
-    uint64_t n = numLeaves;
-    n--;
+    uint64_t n = num_leaves;
+    --n;
     n |= n >> 1;
     n |= n >> 2;
     n |= n >> 4;
     n |= n >> 8;
     n |= n >> 16;
     n |= n >> 32;
-    n++;
+    ++n;
 
     // log of 2 is the tree depth/height
     // if n == 0, there will be 64 traling zeros but actually no tree rows.
@@ -326,169 +326,169 @@ uint8_t _numRows(uint64_t numLeaves)
 }
 
 
-uint8_t ForestState::numRows() const
+uint8_t ForestState::NumRows() const
 {
-    return _numRows(this->numLeaves);
+    return _numRows(this->m_num_leaves);
 }
 
-uint8_t ForestState::detectRow(uint64_t pos) const
+uint8_t ForestState::DetectRow(uint64_t pos) const
 {
-    uint64_t marker = 1 << this->numRows();
+    uint64_t marker = 1 << this->NumRows();
     uint8_t row = 0;
 
-    for (; (pos & marker) != 0; row++) {
+    for (; (pos & marker) != 0; ++row) {
         marker >>= 1;
     }
 
     return row;
 }
 
-uint64_t ForestState::rowOffset(uint64_t pos) const
+uint64_t ForestState::RowOffset(uint64_t pos) const
 {
-    uint8_t row = this->detectRow(pos);
-    uint64_t marker = this->maxNodes();
-    return (0xFFFFFFFFFFFFFFFF << (this->numRows() + 1 - row)) & marker;
+    uint8_t row = this->DetectRow(pos);
+    uint64_t marker = this->MaxNodes();
+    return (0xFFFFFFFFFFFFFFFF << (this->NumRows() + 1 - row)) & marker;
 }
 
 // transform
 
-void ForestState::add(uint64_t num) { this->numLeaves += num; }
+void ForestState::Add(uint64_t num) { this->m_num_leaves += num; }
 
-void ForestState::remove(uint64_t num) { this->numLeaves -= num; }
+void ForestState::Remove(uint64_t num) { this->m_num_leaves -= num; }
 
 std::vector<std::vector<ForestState::Swap>>
-ForestState::transform(const std::vector<uint64_t>& targets) const
+ForestState::Transform(const std::vector<uint64_t>& targets) const
 {
-    uint8_t rows = this->numRows();
-    uint64_t nextNumLeaves = this->numLeaves - targets.size();
+    uint8_t rows = this->NumRows();
+    uint64_t next_num_leaves = this->m_num_leaves - targets.size();
 
     std::vector<std::vector<ForestState::Swap>> swaps;
     std::vector<ForestState::Swap> collapses;
     swaps.reserve(rows);
     collapses.reserve(rows);
 
-    std::vector<uint64_t> currentRowTargets(targets);
+    std::vector<uint64_t> current_row_targets(targets);
 
-    for (uint8_t row = 0; row < rows && currentRowTargets.size() > 0; row++) {
-        bool rootPresent = this->hasRoot(row);
-        uint64_t rootPos = this->rootPosition(row);
+    for (uint8_t row = 0; row < rows && current_row_targets.size() > 0; ++row) {
+        bool root_present = this->HasRoot(row);
+        uint64_t root_pos = this->RootPosition(row);
 
-        if (rootPresent && *(currentRowTargets.end() - 1) == rootPos) {
-            currentRowTargets.pop_back();
-            rootPresent = false;
+        if (root_present && *(current_row_targets.end() - 1) == root_pos) {
+            current_row_targets.pop_back();
+            root_present = false;
         }
 
-        bool deletionRemains = currentRowTargets.size() % 2 != 0;
+        bool deletion_remains = current_row_targets.size() % 2 != 0;
 
-        //extractPair.first are the parents of the siblings, extractPair.second is the input with out siblings.
-        std::pair<std::vector<uint64_t>, std::vector<uint64_t>> extractPair =
-            computeNextRowTargets(currentRowTargets, deletionRemains, rootPresent);
-        swaps.push_back(this->makeSwaps(extractPair.second, deletionRemains, rootPresent, rootPos));
-        collapses.push_back(this->makeCollapse(extractPair.second, deletionRemains, rootPresent, row, nextNumLeaves));
+        //extract_pair.first are the parents of the siblings, extract_pair.second is the input with out siblings.
+        std::pair<std::vector<uint64_t>, std::vector<uint64_t>> extract_pair =
+            ComputeNextRowTargets(current_row_targets, deletion_remains, root_present);
+        swaps.push_back(this->MakeSwaps(extract_pair.second, deletion_remains, root_present, root_pos));
+        collapses.push_back(this->MakeCollapse(extract_pair.second, deletion_remains, root_present, row, next_num_leaves));
 
-        currentRowTargets = extractPair.first;
+        current_row_targets = extract_pair.first;
     }
 
     // Convert collapses to swaps and append them to the swaps list.
-    this->convertCollapses(swaps, collapses);
+    this->ConvertCollapses(swaps, collapses);
 
     return swaps;
 }
 
 // misc
 
-uint64_t _maxNodes(uint64_t numLeaves) { return (2 << _numRows(numLeaves)) - 1; }
-uint64_t ForestState::maxNodes() const { return _maxNodes(numLeaves); }
+uint64_t _maxNodes(uint64_t num_leaves) { return (2 << _numRows(num_leaves)) - 1; }
+uint64_t ForestState::MaxNodes() const { return _maxNodes(this->m_num_leaves); }
 
 // private
 
 std::pair<std::vector<uint64_t>, std::vector<uint64_t>>
-ForestState::computeNextRowTargets(const std::vector<uint64_t>& targets,
-                                   bool deletionRemains,
-                                   bool rootPresent) const
+ForestState::ComputeNextRowTargets(const std::vector<uint64_t>& targets,
+                                   bool deletion_remains,
+                                   bool root_present) const
 {
-    std::vector<uint64_t> targetsWithoutSiblings, parents;
+    std::vector<uint64_t> targets_without_siblings, parents;
 
     std::vector<uint64_t>::const_iterator start = targets.begin();
     while (start < targets.end()) {
-        if (start < targets.end() - 1 && this->rightSibling(start[0]) == start[1]) {
+        if (start < targets.end() - 1 && this->RightSibling(start[0]) == start[1]) {
             // These two targets are siblings. In the context of computing swaps there is no need to swap them,
             // but we might want to swap their parent in the next row.
             // => store the parent.
-            parents.push_back(this->parent(start[0]));
+            parents.push_back(this->Parent(start[0]));
             start += 2;
             continue;
         }
 
         // This target has no sibling.
-        targetsWithoutSiblings.push_back(start[0]);
-        if (targetsWithoutSiblings.size() % 2 == 0) {
-            parents.push_back(this->parent(start[0]));
+        targets_without_siblings.push_back(start[0]);
+        if (targets_without_siblings.size() % 2 == 0) {
+            parents.push_back(this->Parent(start[0]));
         }
-        start++;
+        ++start;
     }
 
-    if (deletionRemains && !rootPresent) {
-        parents.push_back(this->parent(targetsWithoutSiblings.back()));
+    if (deletion_remains && !root_present) {
+        parents.push_back(this->Parent(targets_without_siblings.back()));
     }
 
-    return std::make_pair(parents, targetsWithoutSiblings);
+    return std::make_pair(parents, targets_without_siblings);
 }
 
-std::vector<ForestState::Swap> ForestState::makeSwaps(const std::vector<uint64_t>& targets,
-                                                      bool deletionRemains,
-                                                      bool rootPresent,
-                                                      uint64_t rootPos) const
+std::vector<ForestState::Swap> ForestState::MakeSwaps(const std::vector<uint64_t>& targets,
+                                                      bool deletion_remains,
+                                                      bool root_present,
+                                                      uint64_t root_pos) const
 {
-    // +1 for deletionRemains && rootPresent == true
-    uint32_t numSwaps = (targets.size() >> 1) + 1;
+    // +1 for deletion_remains && root_present == true
+    uint32_t num_swaps = (targets.size() >> 1) + 1;
     std::vector<ForestState::Swap> swaps;
-    swaps.reserve(numSwaps);
+    swaps.reserve(num_swaps);
 
     std::vector<uint64_t>::const_iterator start = targets.begin();
     while (targets.end() - start > 1) {
         // Look at 2 targets at a time and create a swap that turns both deletions into siblings.
         // This is possible because all nodes in `targets` are not siblings (thanks to `computeNextRowTargets`).
-        swaps.push_back(ForestState::Swap(this->sibling(start[1]), start[0]));
+        swaps.push_back(ForestState::Swap((start[1]), start[0]));
         start += 2;
     }
 
-    if (deletionRemains && rootPresent) {
+    if (deletion_remains && root_present) {
         // there is a remaining deletion and a root on this row
         // => swap target with the root.
-        swaps.push_back(ForestState::Swap(rootPos, start[0]));
+        swaps.push_back(ForestState::Swap(root_pos, start[0]));
     }
 
     return swaps;
 }
 
-ForestState::Swap ForestState::makeCollapse(const std::vector<uint64_t>& targets,
-                                            bool deletionRemains,
-                                            bool rootPresent,
+ForestState::Swap ForestState::MakeCollapse(const std::vector<uint64_t>& targets,
+                                            bool deletion_remains,
+                                            bool root_present,
                                             uint8_t row,
-                                            uint64_t nextNumLeaves) const
+                                            uint64_t next_num_leaves) const
 {
     // The position of the root on this row after the deletion.
-    uint64_t rootDest = _rootPosition(row, nextNumLeaves, this->numRows());
+    uint64_t root_dest = _rootPosition(row, next_num_leaves, this->NumRows());
 
-    if (!deletionRemains && rootPresent) {
+    if (!deletion_remains && root_present) {
         // No deletion remaining but there is a root.
         // => Collapse the root to its position after the deletion.
-        return ForestState::Swap(this->rootPosition(row), rootDest, true);
+        return ForestState::Swap(this->RootPosition(row), root_dest, true);
     }
 
-    if (deletionRemains && !rootPresent) {
+    if (deletion_remains && !root_present) {
         // There is no root but there is a remaining deletion.
         // => The sibling of the remaining deletion becomes a root.
-        return ForestState::Swap(this->sibling(targets.back()), rootDest, true);
+        return ForestState::Swap((targets.back()), root_dest, true);
     }
 
     // No collapse on this row.
-    // This will be ignored in `convertCollapses` because collapse=false.
+    // This will be ignored in `ConvertCollapses` because collapse=false.
     return ForestState::Swap(0, 0);
 }
 
-void ForestState::convertCollapses(std::vector<std::vector<ForestState::Swap>>& swaps,
+void ForestState::ConvertCollapses(std::vector<std::vector<ForestState::Swap>>& swaps,
                                    std::vector<ForestState::Swap>& collapses) const
 {
     if (collapses.size() == 0) {
@@ -497,51 +497,51 @@ void ForestState::convertCollapses(std::vector<std::vector<ForestState::Swap>>& 
     }
 
 
-    for (uint8_t row = collapses.size() - 1; row != 0; row--) {
+    for (uint8_t row = collapses.size() - 1; row != 0; --row) {
         for (ForestState::Swap swap : swaps.at(row)) {
             // For every swap in the row, convert the collapses below the swap.
-            this->swapInRow(swap, collapses, row);
+            this->SwapInRow(swap, collapses, row);
         }
 
-        if (!collapses.at(row).collapse) {
+        if (!collapses.at(row).m_collapse) {
             // There is no collapse in this row.
             continue;
         }
 
         // For the collapse on this row, convert the other collapses located below.
-        this->swapInRow(collapses.at(row), collapses, row);
+        this->SwapInRow(collapses.at(row), collapses, row);
     }
 
     // Append collapses to swaps.
     uint8_t row = 0;
     for (ForestState::Swap collapse : collapses) {
-        if (collapse.from != collapse.to && collapse.collapse) {
+        if (collapse.m_from != collapse.m_to && collapse.m_collapse) {
             swaps.at(row).push_back(collapse);
         }
-        row++;
+        ++row;
     }
 }
 
-void ForestState::swapInRow(ForestState::Swap swap,
+void ForestState::SwapInRow(ForestState::Swap swap,
                             std::vector<ForestState::Swap>& collapses,
-                            uint8_t swapRow) const
+                            uint8_t swap_row) const
 {
-    for (uint8_t collapseRow = 0; collapseRow < swapRow; collapseRow++) {
-        if (!collapses.at(collapseRow).collapse) {
+    for (uint8_t collapse_row = 0; collapse_row < swap_row; ++collapse_row) {
+        if (!collapses.at(collapse_row).m_collapse) {
             continue;
         }
-        this->swapIfDescendant(swap, collapses.at(collapseRow), swapRow, collapseRow);
+        this->SwapIfDescendant(swap, collapses.at(collapse_row), swap_row, collapse_row);
     }
 }
 
-void ForestState::swapIfDescendant(ForestState::Swap swap,
+void ForestState::SwapIfDescendant(ForestState::Swap swap,
                                    ForestState::Swap& collapse,
-                                   uint8_t swapRow,
-                                   uint8_t collapseRow) const
+                                   uint8_t swap_row,
+                                   uint8_t collapse_row) const
 {
-    uint8_t rowDiff = swapRow - collapseRow;
-    uint64_t ancestor = this->ancestor(collapse.to, rowDiff);
-    if ((ancestor == swap.from) != (ancestor == swap.to)) {
-        collapse.to ^= (swap.from ^ swap.to) << rowDiff;
+    uint8_t row_diff = swap_row - collapse_row;
+    uint64_t ancestor = this->Ancestor(collapse.m_to, row_diff);
+    if ((ancestor == swap.m_from) != (ancestor == swap.m_to)) {
+        collapse.m_to ^= (swap.m_from ^ swap.m_to) << row_diff;
     }
 }
