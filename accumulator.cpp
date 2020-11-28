@@ -68,7 +68,7 @@ void Accumulator::Add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& lea
         }
 
         // Update the root positions.
-        // This only need happen if the number of rows in the forest changes.
+        // This only needs to happen if the number of rows in the forest changes.
         // In this case there will always be exactly two roots, one on row 0 and one
         // on the next-to-last row.
         this->m_roots[1]->m_position = this->m_state.RootPosition(0);
