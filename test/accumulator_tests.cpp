@@ -1,6 +1,8 @@
 #include "util/strencodings.h"
 #include <accumulator.h>
 #include <boost/test/unit_test.hpp>
+#include <chrono>
+#include <nodepool.h>
 #include <pollard.h>
 #include <ram_forest.h>
 #include <state.h>
@@ -29,10 +31,30 @@ public:
     }
 };
 
+BOOST_AUTO_TEST_CASE(simple_add)
+{
+    ForestState state(0);
+    Accumulator* full = (Accumulator*)new Pollard(state, 160);
+    auto start = std::chrono::high_resolution_clock::now();
+    auto leaves = std::vector<std::shared_ptr<Accumulator::Leaf>>();
+    // NodePtr<Accumulator::Node> new_root;
+    for (int i = 0; i < 64; i++) {
+        leaves.push_back(std::shared_ptr<Accumulator::Leaf>((Accumulator::Leaf*)new TestLeaf(i + 1)));
+        //full->NewLeaf(uint256S(""));
+        //    new_root = full->NewLeaf(leaves.back()->Hash());
+    }
+
+    full->Modify(leaves, std::vector<uint64_t>());
+    auto finish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = finish - start;
+    //std::cout << "Elapsed time: " << elapsed.count() << " s\n";
+    delete full;
+}
+
 BOOST_AUTO_TEST_CASE(simple_full)
 {
     ForestState state(0);
-    Accumulator* full = (Accumulator*)new RamForest(state);
+    Accumulator* full = (Accumulator*)new RamForest(state, 32);
 
     auto leaves = std::vector<std::shared_ptr<Accumulator::Leaf>>();
     for (int i = 0; i < 15; i++) {
@@ -47,7 +69,7 @@ BOOST_AUTO_TEST_CASE(simple_full)
 BOOST_AUTO_TEST_CASE(simple_pruned)
 {
     ForestState state(0);
-    Accumulator* pruned = (Accumulator*)new Pollard(state);
+    Accumulator* pruned = (Accumulator*)new Pollard(state, 32);
 
     auto leaves = std::vector<std::shared_ptr<Accumulator::Leaf>>();
     for (int i = 0; i < 15; i++) {
@@ -63,7 +85,7 @@ BOOST_AUTO_TEST_CASE(simple_pruned)
 BOOST_AUTO_TEST_CASE(simple_verify)
 {
     ForestState state(0);
-    Accumulator* full = (Accumulator*)new RamForest(state);
+    Accumulator* full = (Accumulator*)new RamForest(state, 32);
 
     auto leaves = std::vector<std::shared_ptr<Accumulator::Leaf>>();
     for (int i = 0; i < 15; i++) {
@@ -72,7 +94,7 @@ BOOST_AUTO_TEST_CASE(simple_verify)
     full->Modify(leaves, std::vector<uint64_t>());
 
     Accumulator::BatchProof proof = full->Prove({0, 2, 3, 9});
-    proof.Print();
+    //proof.Print();
 
     auto roots = full->Roots();
     std::reverse(roots.begin(), roots.end());

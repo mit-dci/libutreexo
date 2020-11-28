@@ -4,14 +4,14 @@
 #include <pollard.h>
 #include <string.h>
 
-// Get the internal node from a std::shared_ptr<Accumulator::Node>.
+// Get the internal node from a NodePtr<Accumulator::Node>.
 #define INTERNAL_NODE(acc_node) (((Pollard::Node*)acc_node.get())->m_node)
 
 // Pollard
 
-std::vector<std::shared_ptr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, std::shared_ptr<Accumulator::Node>& rehash_path) const
+std::vector<NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<Accumulator::Node>& rehash_path, bool record_path) const
 {
-    std::vector<std::shared_ptr<Pollard::InternalNode>> family;
+    std::vector<NodePtr<Pollard::InternalNode>> family;
     family.reserve(2);
 
     // Get the path to the position.
@@ -21,8 +21,9 @@ std::vector<std::shared_ptr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, 
 
     // There is no node above a root.
     rehash_path = nullptr;
-    std::shared_ptr<Pollard::InternalNode> node = INTERNAL_NODE(this->m_roots[tree]),
-                                           sibling = INTERNAL_NODE(this->m_roots[tree]);
+
+    NodePtr<Pollard::InternalNode> node = INTERNAL_NODE(this->m_roots[tree]),
+                                   sibling = INTERNAL_NODE(this->m_roots[tree]);
     uint64_t node_pos = this->m_state.RootPositions()[tree];
 
     if (path_length == 0) {
@@ -37,8 +38,16 @@ std::vector<std::shared_ptr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, 
         uint8_t lr = (path_bits >> (path_length - 1 - i)) & 1;
         uint8_t lr_sib = this->m_state.Sibling(lr);
 
-        auto int_node = new Pollard::Node(this->m_state, node_pos, node, rehash_path, sibling);
-        rehash_path = std::shared_ptr<Accumulator::Node>((Accumulator::Node*)int_node);
+        //auto int_node = new Pollard::Node(this->m_state, node_pos, node, rehash_path, sibling);
+        if (record_path) {
+            auto path_node = NodePtr<Pollard::Node>(m_nodepool);
+            path_node->m_forest_state = m_state;
+            path_node->m_position = node_pos;
+            path_node->m_node = node;
+            path_node->m_parent = rehash_path;
+            path_node->m_sibling = sibling;
+            rehash_path = path_node;
+        }
 
         node = sibling->m_nieces[lr_sib];
         sibling = sibling->m_nieces[lr];
@@ -51,15 +60,14 @@ std::vector<std::shared_ptr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, 
     return family;
 }
 
-std::shared_ptr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uint64_t to)
+NodePtr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uint64_t to)
 {
-    // TODO: get rid of tmp.
-    std::shared_ptr<Accumulator::Node> rehash_path, tmp;
-    std::vector<std::shared_ptr<InternalNode>> family_from, family_to;
-    family_from = this->Read(from, tmp);
-    family_to = this->Read(to, rehash_path);
+    NodePtr<Accumulator::Node> rehash_path, unused;
+    std::vector<NodePtr<InternalNode>> family_from, family_to;
+    family_from = this->Read(from, unused, false);
+    family_to = this->Read(to, rehash_path, true);
 
-    std::shared_ptr<InternalNode> node_from, sibling_from,
+    NodePtr<InternalNode> node_from, sibling_from,
         node_to, sibling_to;
     node_from = family_from.at(0);
     sibling_from = family_from.at(1);
@@ -74,36 +82,46 @@ std::shared_ptr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uint64_t
     return rehash_path;
 }
 
-std::shared_ptr<Accumulator::Node> Pollard::NewLeaf(uint256 hash)
+NodePtr<Accumulator::Node> Pollard::NewLeaf(uint256& hash)
 {
-    auto int_node = std::shared_ptr<InternalNode>(new InternalNode(hash));
+    auto int_node = NodePtr<InternalNode>(m_int_nodepool);
+    int_node->m_hash = hash;
+    //memcpy(int_node->m_hash.begin(), hash.begin(), 32);
     // TODO: dont remember everything
     int_node->m_nieces[0] = int_node;
+    int_node->m_nieces[1] = nullptr;
 
-    this->m_roots.push_back(std::shared_ptr<Accumulator::Node>(
-        (Accumulator::Node*)new Pollard::Node(this->m_state, this->m_state.m_num_leaves, int_node)));
+    auto node = NodePtr<Pollard::Node>(m_nodepool);
+    node->m_forest_state = m_state;
+    node->m_position = m_state.m_num_leaves;
+    node->m_node = int_node;
+    this->m_roots.push_back(node);
 
     return this->m_roots.back();
 }
 
-std::shared_ptr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, uint256 parent_hash)
+NodePtr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, uint256 parent_hash)
 {
-    std::shared_ptr<InternalNode> int_right = INTERNAL_NODE(this->m_roots.back());
+    NodePtr<InternalNode> int_right = INTERNAL_NODE(this->m_roots.back());
     this->m_roots.pop_back();
-    std::shared_ptr<InternalNode> int_left = INTERNAL_NODE(this->m_roots.back());
+    NodePtr<InternalNode> int_left = INTERNAL_NODE(this->m_roots.back());
     this->m_roots.pop_back();
-
     // swap nieces
     std::swap(int_left->m_nieces, int_right->m_nieces);
 
     // create internal node
-    auto int_node = std::shared_ptr<InternalNode>(new InternalNode(parent_hash));
+    auto int_node = NodePtr<InternalNode>(m_int_nodepool);
+    //memcpy(int_node->m_hash.begin(), parent_hash.begin(), 32);
+    int_node->m_hash = parent_hash;
     int_node->m_nieces[0] = int_left;
     int_node->m_nieces[1] = int_right;
     int_node->Prune();
 
-    this->m_roots.push_back(std::shared_ptr<Accumulator::Node>(
-        (Accumulator::Node*)(new Pollard::Node(this->m_state, parent_pos, int_node))));
+    auto node = NodePtr<Pollard::Node>(m_nodepool);
+    node->m_forest_state = m_state;
+    node->m_position = parent_pos;
+    node->m_node = int_node;
+    this->m_roots.push_back(node);
 
     return this->m_roots.back();
 }
@@ -114,16 +132,21 @@ void Pollard::FinalizeRemove(const ForestState next_state)
     std::vector<uint64_t> new_positions = this->m_state.RootPositions(next_state.m_num_leaves);
 
     // Select the new roots.
-    std::vector<std::shared_ptr<Accumulator::Node>> new_roots;
+    std::vector<NodePtr<Accumulator::Node>> new_roots;
     new_roots.reserve(new_positions.size());
 
     for (uint64_t new_pos : new_positions) {
-        std::shared_ptr<Accumulator::Node> unused_path = nullptr;
-        std::vector<std::shared_ptr<InternalNode>> family = this->Read(new_pos, unused_path);
-        new_roots.push_back(std::shared_ptr<Accumulator::Node>(
-            (Accumulator::Node*)new Pollard::Node(this->m_state, new_pos, family.at(0))));
+        NodePtr<Accumulator::Node> unused_path;
+        std::vector<NodePtr<InternalNode>> family = this->Read(new_pos, unused_path, false);
+
+        auto node = NodePtr<Pollard::Node>(m_nodepool);
+        node->m_forest_state = m_state;
+        node->m_position = new_pos;
+        node->m_node = family.at(0);
+        new_roots.push_back(node);
     }
 
+    m_roots.clear();
     this->m_roots = new_roots;
 }
 
@@ -131,14 +154,14 @@ void Pollard::FinalizeRemove(const ForestState next_state)
 
 const uint256& Pollard::Node::Hash() const
 {
-    return this->m_node->m_hash;
+    return m_node.get()->m_hash;
 }
 
 void Pollard::Node::ReHash()
 {
     if (!this->m_sibling->m_nieces[0] || !this->m_sibling->m_nieces[1]) {
         // TODO: error could not rehash one of the children is not known.
-        // This will happen if there are duplicates in the dirtyNodes in Accumulator::remove.
+        // This will happen if there are duplicates in the dirtyNodes in Accumulator::Remove.
         return;
     }
 
@@ -159,9 +182,7 @@ void Pollard::InternalNode::Prune()
     }
 }
 
-bool Pollard::InternalNode::DeadEnd()
+bool Pollard::InternalNode::DeadEnd() const
 {
     return !this->m_nieces[0] && !this->m_nieces[1];
 }
-
-Pollard::InternalNode::~InternalNode() {}

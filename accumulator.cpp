@@ -1,4 +1,5 @@
 #include <accumulator.h>
+#include <check.h>
 #include <crypto/sha256.h>
 #include <iostream>
 #include <stdio.h>
@@ -24,6 +25,9 @@ const std::vector<uint256> Accumulator::Roots() const
 
 uint256 Accumulator::ParentHash(const uint256& left, const uint256& right)
 {
+    CHECK_SAFE(!left.IsNull());
+    CHECK_SAFE(!right.IsNull());
+
     CSHA256 hasher;
 
     // copy the two hashes into one 64 byte buffer
@@ -39,7 +43,7 @@ uint256 Accumulator::ParentHash(const uint256& left, const uint256& right)
     return parent_hash;
 }
 
-void Accumulator::PrintRoots(const std::vector<std::shared_ptr<Accumulator::Node>>& roots) const
+void Accumulator::PrintRoots(const std::vector<NodePtr<Accumulator::Node>>& roots) const
 {
     for (auto root : roots) {
         std::cout << "root: " << root->m_position << ":" << root->Hash().GetHex() << std::endl;
@@ -48,9 +52,12 @@ void Accumulator::PrintRoots(const std::vector<std::shared_ptr<Accumulator::Node
 
 void Accumulator::Add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves)
 {
+    NodePtr<Accumulator::Node> new_root;
+
     for (auto leaf = leaves.begin(); leaf < leaves.end(); ++leaf) {
         int root = this->m_roots.size() - 1;
-        std::shared_ptr<Accumulator::Node> new_root = this->NewLeaf((*leaf)->Hash());
+        uint256 leafHash = (*leaf)->Hash();
+        new_root = this->NewLeaf(leafHash);
 
         for (uint8_t row = 0; this->m_state.HasRoot(row); ++row) {
             uint64_t parent_pos = this->m_state.Parent(new_root->m_position);
@@ -75,9 +82,9 @@ void Accumulator::Add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& lea
         this->m_roots[0]->m_position = this->m_state.RootPosition(this->m_state.NumRows() - 1);
     }
 
-    std::cout << "roots after adding:" << std::endl;
-    print_vector(this->m_state.RootPositions());
-    this->PrintRoots(this->m_roots);
+    //std::cout << "roots after adding:" << std::endl;
+    //print_vector(this->m_state.RootPositions());
+    //this->PrintRoots(this->m_roots);
 }
 
 bool IsSortedNoDupes(const std::vector<uint64_t>& targets)
@@ -115,22 +122,23 @@ void Accumulator::Remove(const std::vector<uint64_t>& targets)
     std::vector<std::vector<ForestState::Swap>> swaps = this->m_state.Transform(targets);
     // Store the nodes that have to be rehashed because their children changed.
     // These nodes are "dirty".
-    std::vector<std::shared_ptr<Accumulator::Node>> dirty_nodes;
+    std::vector<NodePtr<Accumulator::Node>> dirty_nodes;
 
     for (uint8_t row = 0; row < this->m_state.NumRows(); ++row) {
-        std::vector<std::shared_ptr<Accumulator::Node>> next_dirty_nodes;
+        std::vector<NodePtr<Accumulator::Node>> next_dirty_nodes;
+
         if (row < swaps.size()) {
             // Execute all the swaps in this row.
             for (const ForestState::Swap swap : swaps.at(row)) {
-                std::shared_ptr<Accumulator::Node> swap_dirt = this->SwapSubTrees(swap.m_from, swap.m_to);
+                NodePtr<Accumulator::Node> swap_dirt = this->SwapSubTrees(swap.m_from, swap.m_to);
                 dirty_nodes.push_back(swap_dirt);
             }
         }
 
         // Rehash all the dirt after swapping.
-        for (std::shared_ptr<Accumulator::Node> dirt : dirty_nodes) {
+        for (NodePtr<Accumulator::Node> dirt : dirty_nodes) {
             dirt->ReHash();
-            std::shared_ptr<Accumulator::Node> parent = dirt->Parent();
+            NodePtr<Accumulator::Node> parent = dirt->Parent();
             if (parent && (next_dirty_nodes.size() == 0 || next_dirty_nodes.back()->m_position != parent->m_position)) {
                 next_dirty_nodes.push_back(parent);
             }
@@ -142,6 +150,10 @@ void Accumulator::Remove(const std::vector<uint64_t>& targets)
     ForestState nextState(this->m_state.m_num_leaves - targets.size());
     this->FinalizeRemove(nextState);
     this->m_state.Remove(targets.size());
+
+    //std::cout << "roots after deletion:" << std::endl;
+    //print_vector(this->m_state.RootPositions());
+    //this->PrintRoots(this->m_roots);
 }
 
 // Accumulator::BatchProof

@@ -26,7 +26,7 @@ void RamForest::Node::ReHash()
     rowData[this->m_position - offset] = this->m_hash;
 }
 
-std::shared_ptr<Accumulator::Node> RamForest::Node::Parent() const
+NodePtr<Accumulator::Node> RamForest::Node::Parent() const
 {
     uint64_t parent_pos = this->m_forest_state.Parent(this->m_position);
     uint8_t row = this->m_forest_state.DetectRow(this->m_position);
@@ -36,8 +36,12 @@ std::shared_ptr<Accumulator::Node> RamForest::Node::Parent() const
         return nullptr;
     }
 
-    return std::shared_ptr<Accumulator::Node>(
-        (Accumulator::Node*)new RamForest::Node(this->m_forest, parent_pos, uint256S("")));
+    auto node = NodePtr<RamForest::Node>(m_forest->m_nodepool);
+	node->m_forest_state = m_forest_state;
+    node->m_forest = m_forest;
+    node->m_position = parent_pos;
+
+    return node;
 }
 
 // RamForest
@@ -76,7 +80,7 @@ void RamForest::SwapRange(uint64_t from, uint64_t to, uint64_t range)
     }
 }
 
-std::shared_ptr<Accumulator::Node> RamForest::SwapSubTrees(uint64_t from, uint64_t to)
+NodePtr<Accumulator::Node> RamForest::SwapSubTrees(uint64_t from, uint64_t to)
 {
     // posA and posB are on the same row
     uint8_t row = this->m_state.DetectRow(from);
@@ -88,11 +92,15 @@ std::shared_ptr<Accumulator::Node> RamForest::SwapSubTrees(uint64_t from, uint64
         from = this->m_state.Parent(from);
         to = this->m_state.Parent(to);
     }
+    auto node = NodePtr<RamForest::Node>(m_nodepool);
+	node->m_forest_state = m_state;
+    node->m_forest = this;
+    node->m_position = to;
 
-    return std::shared_ptr<Accumulator::Node>((Accumulator::Node*)new RamForest::Node(this, to, uint256S("")));
+    return node;
 }
 
-std::shared_ptr<Accumulator::Node> RamForest::MergeRoot(uint64_t parent_pos, uint256 parent_hash)
+NodePtr<Accumulator::Node> RamForest::MergeRoot(uint64_t parent_pos, uint256 parent_hash)
 {
     this->m_roots.pop_back();
     this->m_roots.pop_back();
@@ -103,22 +111,27 @@ std::shared_ptr<Accumulator::Node> RamForest::MergeRoot(uint64_t parent_pos, uin
     // add hash to forest
     this->m_data.at(row).push_back(parent_hash);
 
-    this->m_roots.push_back(std::shared_ptr<Accumulator::Node>((Accumulator::Node*)new RamForest::Node(
-        this,
-        parent_pos,
-        this->m_data.at(row).back())));
+    auto node = NodePtr<RamForest::Node>(m_nodepool);
+	// TODO: should we set m_forest_state on the node?
+    node->m_forest = this;
+    node->m_position = parent_pos;
+    node->m_hash = m_data.at(row).back();
+    m_roots.push_back(node);
 
     return this->m_roots.back();
 }
 
-std::shared_ptr<Accumulator::Node> RamForest::NewLeaf(uint256 hash)
+NodePtr<Accumulator::Node> RamForest::NewLeaf(uint256& hash)
 {
     // append new hash on row 0 (as a leaf)
     this->m_data.at(0).push_back(hash);
-    this->m_roots.push_back(std::shared_ptr<Accumulator::Node>((Accumulator::Node*)new RamForest::Node(
-        this,
-        this->m_state.m_num_leaves,
-        hash)));
+
+    NodePtr<RamForest::Node> new_root(m_nodepool);
+    new_root->m_forest = this;
+    new_root->m_position = m_state.m_num_leaves;
+    new_root->m_hash = hash;
+    m_roots.push_back(new_root);
+    //m_roots.emplace_back(std::move(new_root));
 
     return this->m_roots.back();
 }
@@ -137,12 +150,15 @@ void RamForest::FinalizeRemove(const ForestState next_state)
     std::vector<uint64_t> new_positions = this->m_state.RootPositions(next_state.m_num_leaves);
 
     // Select the new roots.
-    std::vector<std::shared_ptr<Accumulator::Node>> new_roots;
+    std::vector<NodePtr<Accumulator::Node>> new_roots;
     new_roots.reserve(new_positions.size());
 
     for (uint64_t new_pos : new_positions) {
-        new_roots.push_back(std::shared_ptr<Accumulator::Node>(
-            (Accumulator::Node*)new RamForest::Node(this, new_pos, this->Read(new_pos))));
+        auto new_root = NodePtr<RamForest::Node>(m_nodepool);
+        new_root->m_forest = this;
+        new_root->m_position = new_pos;
+        new_root->m_hash = this->Read(new_pos);
+        new_roots.push_back(new_root);
     }
 
     this->m_roots = new_roots;

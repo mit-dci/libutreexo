@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <bitset>
+#include <check.h>
 #include <iostream>
 #include <memory>
 #include <state.h>
@@ -70,6 +71,7 @@ uint64_t ForestState::Ancestor(uint64_t pos, uint8_t rise) const
 
 uint64_t ForestState::LeftChild(uint64_t pos) const
 {
+    CHECK_SAFE(pos >= this->m_num_leaves);
     return (pos << 1) & (this->MaxNodes());
 }
 
@@ -80,6 +82,8 @@ uint64_t ForestState::Child(uint64_t pos, uint64_t placement) const
 
 uint64_t ForestState::LeftDescendant(uint64_t pos, uint8_t drop) const
 {
+    CHECK_SAFE(drop <= this->DetectRow(pos));
+
     if (drop == 0) {
         return pos;
     }
@@ -151,7 +155,8 @@ ForestState::ProofPositions(const std::vector<uint64_t>& targets) const
                                           end = targets.cend();
 
     // saves the reference to nextTargets in the loop from being destroyed
-    std::shared_ptr<std::vector<uint64_t>> savior;
+    std::vector<uint64_t> savior;
+    std::vector<uint64_t> nextTargets;
 
     for (uint8_t row = 0; row < rows; ++row) {
         computed.insert(computed.end(), start, end);
@@ -162,9 +167,6 @@ ForestState::ProofPositions(const std::vector<uint64_t>& targets) const
             --end;
         }
 
-        std::shared_ptr<std::vector<uint64_t>> nextTargets(
-            new std::vector<uint64_t>());
-
         while (start < end) {
             int size = end - start;
 
@@ -174,8 +176,8 @@ ForestState::ProofPositions(const std::vector<uint64_t>& targets) const
                 // the first and fourth target are cousins
                 // => target 2 and 3 are also targets, both parents are targets of next
                 // row
-                nextTargets->insert(nextTargets->end(),
-                                    {this->Parent(start[0]), this->Parent(start[3])});
+                nextTargets.insert(nextTargets.end(),
+                                   {this->Parent(start[0]), this->Parent(start[3])});
                 start += 4;
                 continue;
             }
@@ -193,8 +195,8 @@ ForestState::ProofPositions(const std::vector<uint64_t>& targets) const
                     proof.push_back(this->Sibling(start[0]));
                 }
 
-                nextTargets->insert(nextTargets->end(),
-                                    {this->Parent(start[0]), this->Parent(start[2])});
+                nextTargets.insert(nextTargets.end(),
+                                   {this->Parent(start[0]), this->Parent(start[2])});
                 start += 3;
                 continue;
             }
@@ -204,7 +206,7 @@ ForestState::ProofPositions(const std::vector<uint64_t>& targets) const
                 if (this->RightSibling(start[0]) == start[1]) {
                     // the first and the second target are siblings
                     // => parent is a target for the next.
-                    nextTargets->push_back(this->Parent(start[0]));
+                    nextTargets.push_back(this->Parent(start[0]));
                     start += 2;
                     continue;
                 }
@@ -216,8 +218,8 @@ ForestState::ProofPositions(const std::vector<uint64_t>& targets) const
                     // => both parents are targets for the next row
                     proof.insert(proof.end(),
                                  {(start[0]), (start[1])});
-                    nextTargets->insert(nextTargets->end(),
-                                        {this->Parent(start[0]), this->Parent(start[1])});
+                    nextTargets.insert(nextTargets.end(),
+                                       {this->Parent(start[0]), this->Parent(start[1])});
                     start += 2;
                     continue;
                 }
@@ -225,13 +227,14 @@ ForestState::ProofPositions(const std::vector<uint64_t>& targets) const
 
             // look at the first target
             proof.push_back(this->Sibling(start[0]));
-            nextTargets->push_back(this->Parent(start[0]));
+            nextTargets.push_back(this->Parent(start[0]));
             ++start;
         }
 
-        start = nextTargets->cbegin();
-        end = nextTargets->cend();
         savior = nextTargets;
+        start = savior.cbegin();
+        end = savior.cend();
+        nextTargets.clear();
     }
 
     return std::make_pair(proof, computed);
@@ -354,7 +357,11 @@ uint64_t ForestState::RowOffset(uint64_t pos) const
 
 void ForestState::Add(uint64_t num) { this->m_num_leaves += num; }
 
-void ForestState::Remove(uint64_t num) { this->m_num_leaves -= num; }
+void ForestState::Remove(uint64_t num)
+{
+    CHECK_SAFE(this->m_num_leaves - num >= 0);
+    this->m_num_leaves -= num;
+}
 
 std::vector<std::vector<ForestState::Swap>>
 ForestState::Transform(const std::vector<uint64_t>& targets) const

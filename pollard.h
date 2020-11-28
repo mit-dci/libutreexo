@@ -3,6 +3,7 @@
 
 #include <accumulator.h>
 #include <memory>
+#include <nodepool.h>
 
 class Pollard : public Accumulator
 {
@@ -11,56 +12,81 @@ private:
     {
     public:
         uint256 m_hash;
-        std::shared_ptr<InternalNode> m_nieces[2];
+        NodePtr<InternalNode> m_nieces[2];
 
-        InternalNode(uint256 hash) : m_hash(hash)
-        {
-            this->m_nieces[0] = nullptr;
-            this->m_nieces[1] = nullptr;
-        }
+        InternalNode() {}
+        ~InternalNode() {}
 
-        ~InternalNode();
-
+        /* Chop of deadend nieces. */
         void Prune();
-        bool DeadEnd();
+
+        /* 
+		 * Return wether or not this node is a deadend.
+		 * A node is a deadend if both nieces do not point to another node.
+		 */
+        bool DeadEnd() const;
+
+        void NodePoolDestroy()
+        {
+            m_nieces[0] = nullptr;
+            m_nieces[1] = nullptr;
+        }
     };
 
-    // Return the node and its sibling.
-    // Point path to the parent of the node. The path to the node can be traversed in reverse order using the
-    // Accumulator::Node::parent function.
-    std::vector<std::shared_ptr<Pollard::InternalNode>> Read(uint64_t pos, std::shared_ptr<Accumulator::Node>& path) const;
+    NodePool<InternalNode>* m_int_nodepool;
 
-protected:
+    /*
+     * Return the node and its sibling.
+     * Point path to the parent of the node. The path to the node can be traversed in reverse order using the
+     * Accumulator::Node::Parent function.
+     */
+    std::vector<NodePtr<Pollard::InternalNode>> Read(uint64_t pos, NodePtr<Accumulator::Node>& path, bool record_path) const;
+
+    ///protected:
     class Node : public Accumulator::Node
     {
     public:
-        std::shared_ptr<InternalNode> m_node;
+        NodePtr<InternalNode> m_node;
 
         // Store the sibling for reHash.
         // The siblings nieces are the nodes children.
-        std::shared_ptr<InternalNode> m_sibling;
+        NodePtr<InternalNode> m_sibling;
 
-        Node(const ForestState& state, uint64_t pos, std::shared_ptr<InternalNode> int_node)
-            : Accumulator::Node(state, pos), m_node(int_node) {}
-
-        Node(const ForestState& state,
-             uint64_t pos,
-             std::shared_ptr<InternalNode> int_node,
-             std::shared_ptr<Accumulator::Node> parent,
-             std::shared_ptr<InternalNode> sibling)
-            : Accumulator::Node(state, pos, parent), m_node(int_node), m_sibling(sibling) {}
+        Node() {}
+        ~Node() {}
 
         const uint256& Hash() const override;
         void ReHash() override;
+
+        void NodePoolDestroy() override
+        {
+            m_node = nullptr;
+            m_sibling = nullptr;
+            Accumulator::Node::NodePoolDestroy();
+        }
     };
 
-    std::shared_ptr<Accumulator::Node> SwapSubTrees(uint64_t from, uint64_t to) override;
-    std::shared_ptr<Accumulator::Node> MergeRoot(uint64_t parent_pos, uint256 parent_hash) override;
-    std::shared_ptr<Accumulator::Node> NewLeaf(uint256 hash) override;
+    NodePool<Pollard::Node>* m_nodepool;
+
+    NodePtr<Accumulator::Node> SwapSubTrees(uint64_t from, uint64_t to) override;
+    NodePtr<Accumulator::Node> MergeRoot(uint64_t parent_pos, uint256 parent_hash) override;
+    NodePtr<Accumulator::Node> NewLeaf(uint256& hash) override;
     void FinalizeRemove(const ForestState next_state) override;
 
 public:
-    Pollard(ForestState& state) : Accumulator(state) {}
+    Pollard(ForestState& state, int max_nodes) : Accumulator(state)
+    {
+        // TODO: find good capacity for both pools.
+        m_int_nodepool = new NodePool<Pollard::InternalNode>(max_nodes);
+        m_nodepool = new NodePool<Pollard::Node>(max_nodes);
+    }
+
+    ~Pollard()
+    {
+        m_roots.clear();
+        delete m_int_nodepool;
+        delete m_nodepool;
+    }
 
     const Accumulator::BatchProof Prove(const std::vector<uint64_t>& targets) const
     {

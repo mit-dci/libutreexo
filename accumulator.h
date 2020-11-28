@@ -2,6 +2,7 @@
 #define UTREEXO_ACCUMULATOR_H
 
 #include <memory>
+#include <nodepool.h>
 #include <state.h>
 #include <uint256.h>
 #include <vector>
@@ -18,7 +19,7 @@ public:
         virtual uint256 Hash() const = 0;
 
         /** Return whether or not this leaf should be remembered. This is ignored if the entire forest is stored. */
-        virtual bool Remember() const = 0;
+        virtual bool Remember() const { return false; };
 
         virtual ~Leaf() {}
     };
@@ -63,7 +64,7 @@ public:
     const std::vector<uint256> Roots() const;
 
 
-protected:
+    //protected:
     /*
      * Node represents a node in the accumulator forest.
      * This is used to create an abstraction on top of a accumulator implementation,
@@ -72,24 +73,14 @@ protected:
      */
     class Node
     {
-    protected:
-        // A constant reference to the forest state.
-        const ForestState& m_forest_state;
+    public:
+        // The forest state in which this node was created.
+        ForestState m_forest_state;
 
         // A pointer to the parent node.
         // This is useful if you want to rehash a path from the bottom up.
-        std::shared_ptr<Accumulator::Node> m_parent;
+        NodePtr<Accumulator::Node> m_parent;
 
-        Node(const ForestState& state,
-             uint64_t position)
-            : m_forest_state(state), m_parent(nullptr), m_position(position) {}
-
-        Node(const ForestState& state,
-             uint64_t position,
-             std::shared_ptr<Accumulator::Node> parent)
-            : m_forest_state(state), m_parent(parent), m_position(position) {}
-
-    public:
         // The position of the node in the forest.
         uint64_t m_position;
 
@@ -108,31 +99,31 @@ protected:
          * Return the parent of the node.
          * A return value of nullptr does *not* always indicate that a tree top was reached. 
          */
-        virtual std::shared_ptr<Accumulator::Node> Parent() const { return m_parent; }
+        virtual NodePtr<Accumulator::Node> Parent() const { return m_parent; }
+
+        virtual void NodePoolDestroy() { m_parent = nullptr; }
     };
 
     // The state of the forest.
     ForestState& m_state;
 
     // The roots of the accumulator.
-    std::vector<std::shared_ptr<Node>> m_roots;
+    std::vector<NodePtr<Accumulator::Node>> m_roots;
 
     /*
      * Swap two subtrees in the forest.
      * Return the nodes that need to be rehashed.
      */
-    virtual std::shared_ptr<Accumulator::Node> SwapSubTrees(uint64_t from, uint64_t to) = 0;
+    virtual NodePtr<Accumulator::Node> SwapSubTrees(uint64_t from, uint64_t to) = 0;
 
-    /*
-     * mergeRoot and newLeaf only have the desired effect if called correctly.
-     * newLeaf should be called to allocate a new leaf.
-     * After calling newLeaf, mergeRoot should be called for every consecutive least significant bit that is set to 1.
-     */
+    // MergeRoot and NewLeaf only have the desired effect if called correctly.
+    // newLeaf should be called to allocate a new leaf.
+    // After calling newLeaf, mergeRoot should be called for every consecutive least significant bit that is set to 1.
 
     /* Return the result of the latest merge. */
-    virtual std::shared_ptr<Accumulator::Node> MergeRoot(uint64_t parent_pos, uint256 parent_hash) = 0;
+    virtual NodePtr<Accumulator::Node> MergeRoot(uint64_t parent_pos, uint256 parent_hash) = 0;
     /* Allocate a new leaf and assign it the given hash */
-    virtual std::shared_ptr<Accumulator::Node> NewLeaf(uint256 hash) = 0;
+    virtual NodePtr<Accumulator::Node> NewLeaf(uint256& hash) = 0;
 
     /* Free memory or select new roots. */
     virtual void FinalizeRemove(const ForestState next_state) = 0;
@@ -142,7 +133,7 @@ protected:
     /* Remove target leaves from the accumulator. */
     void Remove(const std::vector<uint64_t>& targets);
 
-    void PrintRoots(const std::vector<std::shared_ptr<Accumulator::Node>>& roots) const;
+    void PrintRoots(const std::vector<NodePtr<Accumulator::Node>>& roots) const;
 
     /* Compute the parent hash from to children. */
     static uint256 ParentHash(const uint256& left, const uint256& right);
