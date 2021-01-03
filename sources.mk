@@ -1,0 +1,39 @@
+UTREEXO_DIST_HEADERS_INT = 
+UTREEXO_DIST_HEADERS_INT += %reldir%/include/utreexo.h
+
+UTREEXO_LIB_HEADERS_INT = 
+UTREEXO_LIB_HEADERS_INT += %reldir%/accumulator.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/pollard.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/ram_forest.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/attributes.h 
+UTREEXO_LIB_HEADERS_INT += %reldir%/check.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/nodepool.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/state.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/uint256.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/tinyformat.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/crypto/common.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/crypto/sha256.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/crypto/sha512.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/compat/byteswap.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/compat/endian.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/compat/cpuid.h
+UTREEXO_LIB_HEADERS_INT += %reldir%/util/strencodings.h
+
+UTREEXO_LIB_SOURCES_INT = 
+UTREEXO_LIB_SOURCES_INT += %reldir%/accumulator.cpp
+UTREEXO_LIB_SOURCES_INT += %reldir%/pollard.cpp
+UTREEXO_LIB_SOURCES_INT += %reldir%/ram_forest.cpp
+UTREEXO_LIB_SOURCES_INT += %reldir%/state.cpp
+UTREEXO_LIB_SOURCES_INT += %reldir%/uint256.cpp
+UTREEXO_LIB_SOURCES_INT += %reldir%/util/strencodings.cpp
+UTREEXO_LIB_SOURCES_INT += %reldir%/crypto/sha256.cpp
+UTREEXO_LIB_SOURCES_INT += %reldir%/crypto/sha256_avx2.cpp
+UTREEXO_LIB_SOURCES_INT += %reldir%/crypto/sha256_shani.cpp
+UTREEXO_LIB_SOURCES_INT += %reldir%/crypto/sha256_sse4.cpp
+UTREEXO_LIB_SOURCES_INT += %reldir%/crypto/sha256_sse41.cpp
+UTREEXO_LIB_SOURCES_INT += %reldir%/crypto/sha512.cpp
+
+UTREEXO_TEST_SOURCES_INT = 
+UTREEXO_TEST_SOURCES_INT += %reldir%/test/tests.cpp 
+UTREEXO_TEST_SOURCES_INT += %reldir%/test/accumulator_tests.cpp
+UTREEXO_TEST_SOURCES_INT += %reldir%/test/state_tests.cpp
