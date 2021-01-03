@@ -33,16 +33,7 @@ private:
         }
     };
 
-    NodePool<InternalNode>* m_int_nodepool;
-
-    /*
-     * Return the node and its sibling.
-     * Point path to the parent of the node. The path to the node can be traversed in reverse order using the
-     * Accumulator::Node::Parent function.
-     */
-    std::vector<NodePtr<Pollard::InternalNode>> Read(uint64_t pos, NodePtr<Accumulator::Node>& path, bool record_path) const;
-
-    ///protected:
+    /* Pollards implementation of Accumulator::Node */
     class Node : public Accumulator::Node
     {
     public:
@@ -66,7 +57,15 @@ private:
         }
     };
 
+    NodePool<InternalNode>* m_int_nodepool;
     NodePool<Pollard::Node>* m_nodepool;
+
+    /*
+     * Return the node and its sibling.
+     * Point path to the parent of the node. The path to the node can be traversed in reverse order using the
+     * Accumulator::Node::Parent function.
+     */
+    std::vector<NodePtr<Pollard::InternalNode>> Read(uint64_t pos, NodePtr<Accumulator::Node>& path, bool record_path) const;
 
     NodePtr<Accumulator::Node> SwapSubTrees(uint64_t from, uint64_t to) override;
     NodePtr<Accumulator::Node> MergeRoot(uint64_t parent_pos, uint256 parent_hash) override;

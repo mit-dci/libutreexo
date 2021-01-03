@@ -131,7 +131,6 @@ NodePtr<Accumulator::Node> RamForest::NewLeaf(uint256& hash)
     new_root->m_position = m_state.m_num_leaves;
     new_root->m_hash = hash;
     m_roots.push_back(new_root);
-    //m_roots.emplace_back(std::move(new_root));
 
     return this->m_roots.back();
 }

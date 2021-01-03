@@ -64,7 +64,7 @@ public:
     const std::vector<uint256> Roots() const;
 
 
-    //protected:
+protected:
     /*
      * Node represents a node in the accumulator forest.
      * This is used to create an abstraction on top of a accumulator implementation,

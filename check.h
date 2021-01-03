@@ -1,8 +1,5 @@
 // Taken and slightly modified from minisketch/util.h
 
-// TODO: make this defineable at build time
-#define UTREEXO_VERIFY
-
 #ifdef UTREEXO_VERIFY
 #include <stdio.h>
 #endif

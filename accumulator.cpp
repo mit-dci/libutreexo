@@ -14,9 +14,9 @@ void Accumulator::Modify(const std::vector<std::shared_ptr<Accumulator::Leaf>>& 
 const std::vector<uint256> Accumulator::Roots() const
 {
     std::vector<uint256> result;
-    result.reserve(this->m_roots.size());
+    result.reserve(m_roots.size());
 
-    for (auto root : this->m_roots) {
+    for (auto root : m_roots) {
         result.push_back(root->Hash());
     }
 
@@ -52,39 +52,38 @@ void Accumulator::PrintRoots(const std::vector<NodePtr<Accumulator::Node>>& root
 
 void Accumulator::Add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves)
 {
-    NodePtr<Accumulator::Node> new_root;
-
+    // Adding leaves can't be batched, so we add one by one.
     for (auto leaf = leaves.begin(); leaf < leaves.end(); ++leaf) {
-        int root = this->m_roots.size() - 1;
-        uint256 leafHash = (*leaf)->Hash();
-        new_root = this->NewLeaf(leafHash);
+        int root = m_roots.size() - 1;
+        // Create a new leaf and append it to the end of roots.
+        uint256 leaf_hash = (*leaf)->Hash();
+        NodePtr<Accumulator::Node> new_root = this->NewLeaf(leaf_hash);
 
-        for (uint8_t row = 0; this->m_state.HasRoot(row); ++row) {
-            uint64_t parent_pos = this->m_state.Parent(new_root->m_position);
-            uint256 hash = Accumulator::ParentHash(this->m_roots[root]->Hash(), new_root->Hash());
-            new_root = this->MergeRoot(parent_pos, hash);
+        // Merge the last two roots into one for every consecutive root from row 0 upwards.
+        for (uint8_t row = 0; m_state.HasRoot(row); ++row) {
+            new_root = this->MergeRoot(
+                m_state.Parent(new_root->m_position),
+                Accumulator::ParentHash(m_roots[root]->Hash(), new_root->Hash()));
             // Decreasing because we are going in reverse order.
             --root;
         }
 
         // Update the state by adding one leaf.
-        uint8_t prev_rows = this->m_state.NumRows();
-        this->m_state.Add(1);
-        if (prev_rows == 0 || prev_rows == this->m_state.NumRows()) {
-            continue;
-        }
+        uint8_t prev_rows = m_state.NumRows();
+        m_state.Add(1);
 
         // Update the root positions.
         // This only needs to happen if the number of rows in the forest changes.
         // In this case there will always be exactly two roots, one on row 0 and one
         // on the next-to-last row.
-        this->m_roots[1]->m_position = this->m_state.RootPosition(0);
-        this->m_roots[0]->m_position = this->m_state.RootPosition(this->m_state.NumRows() - 1);
-    }
 
-    //std::cout << "roots after adding:" << std::endl;
-    //print_vector(this->m_state.RootPositions());
-    //this->PrintRoots(this->m_roots);
+        if (prev_rows == 0 || prev_rows == m_state.NumRows()) {
+            continue;
+        }
+
+        m_roots[1]->m_position = m_state.RootPosition(0);
+        m_roots[0]->m_position = m_state.RootPosition(m_state.NumRows() - 1);
+    }
 }
 
 bool IsSortedNoDupes(const std::vector<uint64_t>& targets)
@@ -104,7 +103,7 @@ void Accumulator::Remove(const std::vector<uint64_t>& targets)
         return;
     }
 
-    if (this->m_state.m_num_leaves < targets.size()) {
+    if (m_state.m_num_leaves < targets.size()) {
         // TODO: error deleting more targets than elemnts in the accumulator.
         return;
     }
@@ -114,17 +113,17 @@ void Accumulator::Remove(const std::vector<uint64_t>& targets)
         return;
     }
 
-    if (targets.back() >= this->m_state.m_num_leaves) {
+    if (targets.back() >= m_state.m_num_leaves) {
         // TODO: error targets not in the accumulator.
         return;
     }
 
-    std::vector<std::vector<ForestState::Swap>> swaps = this->m_state.Transform(targets);
+    std::vector<std::vector<ForestState::Swap>> swaps = m_state.Transform(targets);
     // Store the nodes that have to be rehashed because their children changed.
     // These nodes are "dirty".
     std::vector<NodePtr<Accumulator::Node>> dirty_nodes;
 
-    for (uint8_t row = 0; row < this->m_state.NumRows(); ++row) {
+    for (uint8_t row = 0; row < m_state.NumRows(); ++row) {
         std::vector<NodePtr<Accumulator::Node>> next_dirty_nodes;
 
         if (row < swaps.size()) {
@@ -147,13 +146,9 @@ void Accumulator::Remove(const std::vector<uint64_t>& targets)
         dirty_nodes = next_dirty_nodes;
     }
 
-    ForestState nextState(this->m_state.m_num_leaves - targets.size());
-    this->FinalizeRemove(nextState);
-    this->m_state.Remove(targets.size());
-
-    //std::cout << "roots after deletion:" << std::endl;
-    //print_vector(this->m_state.RootPositions());
-    //this->PrintRoots(this->m_roots);
+    ForestState next_state(m_state.m_num_leaves - targets.size());
+    this->FinalizeRemove(next_state);
+    m_state.Remove(targets.size());
 }
 
 // Accumulator::BatchProof
