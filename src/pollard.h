@@ -87,10 +87,11 @@ public:
         delete m_nodepool;
     }
 
-    const Accumulator::BatchProof Prove(const std::vector<uint64_t>& targets) const
+    const Accumulator::BatchProof Prove(const std::vector<uint256>& targetHashes) const
     {
         // TODO: prove does not really make sense for the pollard.
         // although you might want to prove cached leaves.
+        std::vector<uint64_t> targets;
         const BatchProof proof(targets, std::vector<uint256>());
         return proof;
     }

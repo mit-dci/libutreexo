@@ -93,17 +93,17 @@ BOOST_AUTO_TEST_CASE(simple_verify)
     }
     full->Modify(leaves, std::vector<uint64_t>());
 
-    Accumulator::BatchProof proof = full->Prove({0, 2, 3, 9});
-    //proof.Print();
-
-    auto roots = full->Roots();
-    std::reverse(roots.begin(), roots.end());
-
     std::vector<uint256> target_hashes;
     target_hashes.push_back(leaves.at(0)->Hash());
     target_hashes.push_back(leaves.at(2)->Hash());
     target_hashes.push_back(leaves.at(3)->Hash());
     target_hashes.push_back(leaves.at(9)->Hash());
+
+    Accumulator::BatchProof proof = full->Prove(target_hashes);
+    //proof.Print();
+
+    auto roots = full->Roots();
+    std::reverse(roots.begin(), roots.end());
 
     BOOST_CHECK(proof.Verify(state, roots, target_hashes));
 

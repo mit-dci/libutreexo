@@ -2,15 +2,26 @@
 #define UTREEXO_RAMFOREST_H
 
 #include <accumulator.h>
+#include <crypto/common.h>
 #include <memory>
 #include <nodepool.h>
+#include <unordered_map>
 #include <vector>
+
+struct LeafHasher {
+    size_t operator()(const uint256& hash) const { return ReadLE64(hash.begin()); }
+};
 
 class RamForest : public Accumulator
 {
 private:
     // A vector of hashes for each row.
     std::vector<std::vector<uint256>> m_data;
+
+    // A map from leaf hashes to their positions.
+    // This is needed for proving that leaves are included in the accumulator.
+    // TODO: only use first 12 bytes of the hash.
+    std::unordered_map<uint256, uint64_t, LeafHasher> m_posmap;
 
     /* Return the hash at a position */
     const uint256 Read(uint64_t pos) const;
@@ -49,7 +60,7 @@ public:
         m_nodepool = new NodePool<Node>(max_nodes);
     }
 
-    const Accumulator::BatchProof Prove(const std::vector<uint64_t>& targets) const override;
+    const Accumulator::BatchProof Prove(const std::vector<uint256>& targetHashes) const override;
     void Add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves) override;
 };
 

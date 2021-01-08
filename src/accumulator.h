@@ -47,7 +47,7 @@ public:
     virtual ~Accumulator() {}
 
     /** Return a BatchProof that proves a set of target leaves. */
-    virtual const BatchProof Prove(const std::vector<uint64_t>& targets) const = 0;
+    virtual const BatchProof Prove(const std::vector<uint256>& targetHashes) const = 0;
 
     /**
      * Verify a proof.
