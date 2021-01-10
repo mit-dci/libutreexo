@@ -1,6 +1,8 @@
+#include "crypto/common.h"
 #include <accumulator.h>
 #include <check.h>
 #include <crypto/sha256.h>
+#include <cstring>
 #include <iostream>
 #include <stdio.h>
 #include <uint256.h>
@@ -245,6 +247,76 @@ bool Accumulator::BatchProof::Verify(ForestState state, const std::vector<uint25
     }
 
     return true;
+}
+
+void Accumulator::BatchProof::Serialize(std::vector<uint8_t>& bytes) const
+{
+    // Number of targets:       4 bytes
+    // Number of proof hashes:  4 bytes
+    // Targets:                 4 bytes each
+    // Proof hashes:           32 bytes each
+    bytes.resize(4 + 4 + targets.size() * 4 + proof.size() * 32);
+
+    int data_offset = 0;
+    WriteBE32(bytes.data(), uint32_t(targets.size()));
+    data_offset += 4;
+    WriteBE32(bytes.data() + data_offset, uint32_t(proof.size()));
+    data_offset += 4;
+
+    for (const uint64_t target : targets) {
+        WriteBE32(bytes.data() + data_offset, uint32_t(target));
+        data_offset += 4;
+    }
+
+    for (const uint256& hash : proof) {
+        std::memcpy(bytes.data() + data_offset, hash.begin(), 32);
+        data_offset += 32;
+    }
+}
+
+bool Accumulator::BatchProof::Unserialize(const std::vector<uint8_t>& bytes)
+{
+    if (bytes.size() < 8) {
+        // 8 byte minimum for the number of targets and proof hashses
+        return false;
+    }
+
+    int data_offset = 0;
+    uint32_t num_targets = ReadBE32(bytes.data());
+    data_offset += 4;
+    uint32_t num_hashes = ReadBE32(bytes.data() + data_offset);
+    data_offset += 4;
+
+    if (bytes.size() != 8 + num_targets * 4 + num_hashes * 32) {
+        return false;
+    }
+
+    targets.clear();
+    proof.clear();
+    targets.reserve(num_targets);
+    proof.reserve(num_hashes);
+
+    for (uint32_t i = 0; i < num_targets; ++i) {
+        targets.push_back(uint64_t(ReadBE32(bytes.data() + data_offset)));
+        data_offset += 4;
+    }
+
+    for (uint32_t i = 0; i < num_hashes; ++i) {
+        uint256 hash;
+        std::memcpy(hash.begin(), bytes.data() + data_offset, 32);
+        data_offset += 32;
+        proof.push_back(hash);
+    }
+
+    assert(data_offset == bytes.size());
+
+    return true;
+}
+
+bool Accumulator::BatchProof::operator==(const BatchProof& other)
+{
+    return targets.size() == other.targets.size() && proof.size() == other.proof.size() &&
+           targets == other.targets && proof == other.proof;
 }
 
 void Accumulator::BatchProof::Print()

@@ -29,16 +29,23 @@ public:
     {
     private:
         // The positions of the leaves that are being proven.
-        const std::vector<uint64_t> targets;
+        std::vector<uint64_t> targets;
 
         // The proof hashes for the targets.
         std::vector<uint256> proof;
 
     public:
-        BatchProof(const std::vector<uint64_t> targets, std::vector<uint256> proof)
+        BatchProof(std::vector<uint64_t> targets, std::vector<uint256> proof)
             : targets(targets), proof(proof) {}
+        BatchProof() {}
 
         bool Verify(ForestState state, const std::vector<uint256> roots, const std::vector<uint256> targetHashes) const;
+
+        void Serialize(std::vector<uint8_t>& bytes) const;
+        bool Unserialize(const std::vector<uint8_t>& bytes);
+
+        bool operator==(const BatchProof& other);
+
         void Print();
     };
 

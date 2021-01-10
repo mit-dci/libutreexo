@@ -82,6 +82,18 @@ BOOST_AUTO_TEST_CASE(simple_pruned)
     delete pruned;
 }
 
+BOOST_AUTO_TEST_CASE(batchproof_serialization)
+{
+    std::vector<uint8_t> proof_bytes;
+    Accumulator::BatchProof proof1{{0, 1, 3}, {uint256S("0x1"), uint256S("0x2")}};
+    proof1.Serialize(proof_bytes);
+
+    Accumulator::BatchProof proof2;
+    BOOST_CHECK(proof2.Unserialize(proof_bytes));
+
+    BOOST_CHECK(proof1 == proof2);
+}
+
 BOOST_AUTO_TEST_CASE(simple_verify)
 {
     ForestState state(0);
