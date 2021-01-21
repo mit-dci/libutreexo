@@ -1,53 +1,48 @@
-#include "util/strencodings.h"
 #include <accumulator.h>
 #include <boost/test/unit_test.hpp>
 #include <chrono>
+#include <cstring>
 #include <nodepool.h>
 #include <pollard.h>
 #include <ram_forest.h>
 #include <state.h>
-#include <uint256.h>
 BOOST_AUTO_TEST_SUITE(accumulator_tests)
 
-class TestLeaf : public Accumulator::Leaf
+void SetHash(Hash& hash, int num)
 {
-private:
-    uint256 h;
-
-public:
-    TestLeaf(uint8_t num)
-    {
-        h.begin()[0] = num;
+    for (uint8_t& byte : hash) {
+        byte = 0;
     }
 
-    uint256 Hash() const
-    {
-        return h;
-    }
+    hash[0] = num;
+    hash[1] = num >> 8;
+    hash[2] = num >> 16;
+    hash[3] = num >> 24;
+    hash[4] = 0xFF;
+}
 
-    bool Remember() const
-    {
-        return false;
+void CreateTestLeaves(std::vector<Leaf>& leaves, int count)
+{
+    for (int i = 0; i < count; i++) {
+        Hash hash;
+        SetHash(hash, i);
+        leaves.emplace_back(std::move(hash), false);
     }
-};
+}
 
 BOOST_AUTO_TEST_CASE(simple_add)
 {
     ForestState state(0);
     Accumulator* full = (Accumulator*)new Pollard(state, 160);
     auto start = std::chrono::high_resolution_clock::now();
-    auto leaves = std::vector<std::shared_ptr<Accumulator::Leaf>>();
-    // NodePtr<Accumulator::Node> new_root;
-    for (int i = 0; i < 64; i++) {
-        leaves.push_back(std::shared_ptr<Accumulator::Leaf>((Accumulator::Leaf*)new TestLeaf(i + 1)));
-        //full->NewLeaf(uint256S(""));
-        //    new_root = full->NewLeaf(leaves.back()->Hash());
-    }
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 64);
 
     full->Modify(leaves, std::vector<uint64_t>());
     auto finish = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = finish - start;
-    //std::cout << "Elapsed time: " << elapsed.count() << " s\n";
+
     delete full;
 }
 
@@ -56,70 +51,52 @@ BOOST_AUTO_TEST_CASE(simple_full)
     ForestState state(0);
     Accumulator* full = (Accumulator*)new RamForest(state, 32);
 
-    auto leaves = std::vector<std::shared_ptr<Accumulator::Leaf>>();
-    for (int i = 0; i < 15; i++) {
-        leaves.push_back(std::shared_ptr<Accumulator::Leaf>((Accumulator::Leaf*)new TestLeaf(i + 1)));
-    }
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 16);
+    // Add test leaves, dont delete any.
     full->Modify(leaves, std::vector<uint64_t>());
+    // Delete some leaves, dont add any new ones.
     leaves.clear();
     full->Modify(leaves, {0, 2, 3, 9});
+
     delete full;
 }
 
 BOOST_AUTO_TEST_CASE(simple_pruned)
 {
     ForestState state(0);
-    Accumulator* pruned = (Accumulator*)new Pollard(state, 32);
+    Accumulator* full = (Accumulator*)new Pollard(state, 32);
 
-    auto leaves = std::vector<std::shared_ptr<Accumulator::Leaf>>();
-    for (int i = 0; i < 15; i++) {
-        leaves.push_back(std::shared_ptr<Accumulator::Leaf>((Accumulator::Leaf*)new TestLeaf(i + 1)));
-    }
-    pruned->Modify(leaves, std::vector<uint64_t>());
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 16);
+
+    // Add test leaves, dont delete any.
+    full->Modify(leaves, std::vector<uint64_t>());
+    // Delete some leaves, dont add any new ones.
     leaves.clear();
-    pruned->Modify(leaves, {0, 2, 3, 9});
+    full->Modify(leaves, {0, 2, 3, 9});
 
-    delete pruned;
+    delete full;
 }
 
 BOOST_AUTO_TEST_CASE(batchproof_serialization)
 {
+    ForestState state(0);
+    Accumulator* full = (Accumulator*)new RamForest(state, 64);
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 32);
+
+    full->Modify(leaves, std::vector<uint64_t>());
+
     std::vector<uint8_t> proof_bytes;
-    Accumulator::BatchProof proof1{{0, 1, 3}, {uint256S("0x1"), uint256S("0x2")}};
+    Accumulator::BatchProof proof1;
+    full->Prove(proof1, {leaves[0].first, leaves[1].first});
     proof1.Serialize(proof_bytes);
 
     Accumulator::BatchProof proof2;
     BOOST_CHECK(proof2.Unserialize(proof_bytes));
-
     BOOST_CHECK(proof1 == proof2);
-}
-
-BOOST_AUTO_TEST_CASE(simple_verify)
-{
-    ForestState state(0);
-    Accumulator* full = (Accumulator*)new RamForest(state, 32);
-
-    auto leaves = std::vector<std::shared_ptr<Accumulator::Leaf>>();
-    for (int i = 0; i < 15; i++) {
-        leaves.push_back(std::shared_ptr<Accumulator::Leaf>((Accumulator::Leaf*)new TestLeaf(i + 1)));
-    }
-    full->Modify(leaves, std::vector<uint64_t>());
-
-    std::vector<uint256> target_hashes;
-    target_hashes.push_back(leaves.at(0)->Hash());
-    target_hashes.push_back(leaves.at(2)->Hash());
-    target_hashes.push_back(leaves.at(3)->Hash());
-    target_hashes.push_back(leaves.at(9)->Hash());
-
-    Accumulator::BatchProof proof = full->Prove(target_hashes);
-    //proof.Print();
-
-    auto roots = full->Roots();
-    std::reverse(roots.begin(), roots.end());
-
-    BOOST_CHECK(proof.Verify(state, roots, target_hashes));
-
-    delete full;
 }
 
 BOOST_AUTO_TEST_SUITE_END()

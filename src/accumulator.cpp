@@ -5,67 +5,75 @@
 #include <cstring>
 #include <iostream>
 #include <stdio.h>
-#include <uint256.h>
 
-void Accumulator::Modify(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves, const std::vector<uint64_t>& targets)
+void Accumulator::Modify(const std::vector<Leaf>& leaves, const std::vector<uint64_t>& targets)
 {
     this->Remove(targets);
     this->Add(leaves);
 }
 
-const std::vector<uint256> Accumulator::Roots() const
+void Accumulator::Roots(std::vector<Hash>& roots) const
 {
-    std::vector<uint256> result;
-    result.reserve(m_roots.size());
+    roots.clear();
+    roots.reserve(m_roots.size());
 
     for (auto root : m_roots) {
-        result.push_back(root->Hash());
+        roots.push_back(root->GetHash());
     }
-
-    return result;
 }
 
-uint256 Accumulator::ParentHash(const uint256& left, const uint256& right)
+void Accumulator::ParentHash(Hash& parent, const Hash& left, const Hash& right)
 {
-    CHECK_SAFE(!left.IsNull());
-    CHECK_SAFE(!right.IsNull());
+    //CHECK_SAFE(!left.IsNull());
+    //CHECK_SAFE(!right.IsNull());
 
     CSHA256 hasher;
 
     // copy the two hashes into one 64 byte buffer
     uint8_t data[64];
-    memcpy(data, left.begin(), 32);
-    memcpy(data + 32, right.begin(), 32);
+    memcpy(data, left.data(), 32);
+    memcpy(data + 32, right.data(), 32);
     hasher.Write(data, 64);
 
     // finalize the hash and write it into parentHash
-    uint256 parent_hash;
-    hasher.Finalize(parent_hash.begin());
+    hasher.Finalize(parent.data());
+}
 
-    return parent_hash;
+// https://github.com/bitcoin/bitcoin/blob/7f653c3b22f0a5267822eec017aea6a16752c597/src/util/strencodings.cpp#L580
+template <class T>
+std::string HexStr(const T s)
+{
+    std::string rv;
+    static constexpr char hexmap[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                                        '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+    rv.reserve(s.size() * 2);
+    for (uint8_t v : s) {
+        rv.push_back(hexmap[v >> 4]);
+        rv.push_back(hexmap[v & 15]);
+    }
+    return rv;
 }
 
 void Accumulator::PrintRoots(const std::vector<NodePtr<Accumulator::Node>>& roots) const
 {
     for (auto root : roots) {
-        std::cout << "root: " << root->m_position << ":" << root->Hash().GetHex() << std::endl;
+        std::cout << "root: " << root->m_position << ":" << HexStr(root->GetHash()) << std::endl;
     }
 }
 
-void Accumulator::Add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves)
+void Accumulator::Add(const std::vector<Leaf>& leaves)
 {
     // Adding leaves can't be batched, so we add one by one.
     for (auto leaf = leaves.begin(); leaf < leaves.end(); ++leaf) {
         int root = m_roots.size() - 1;
         // Create a new leaf and append it to the end of roots.
-        uint256 leaf_hash = (*leaf)->Hash();
-        NodePtr<Accumulator::Node> new_root = this->NewLeaf(leaf_hash);
+        NodePtr<Accumulator::Node> new_root = this->NewLeaf(*leaf);
 
         // Merge the last two roots into one for every consecutive root from row 0 upwards.
         for (uint8_t row = 0; m_state.HasRoot(row); ++row) {
-            new_root = this->MergeRoot(
-                m_state.Parent(new_root->m_position),
-                Accumulator::ParentHash(m_roots[root]->Hash(), new_root->Hash()));
+            Hash parent_hash;
+            Accumulator::ParentHash(parent_hash, m_roots[root]->GetHash(), new_root->GetHash());
+            new_root = MergeRoot(m_state.Parent(new_root->m_position), parent_hash);
             // Decreasing because we are going in reverse order.
             --root;
         }
@@ -83,6 +91,7 @@ void Accumulator::Add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& lea
             continue;
         }
 
+        assert(m_roots.size() >= 2);
         m_roots[1]->m_position = m_state.RootPosition(0);
         m_roots[0]->m_position = m_state.RootPosition(m_state.NumRows() - 1);
     }
@@ -154,7 +163,7 @@ void Accumulator::Remove(const std::vector<uint64_t>& targets)
 }
 
 // Accumulator::BatchProof
-bool Accumulator::BatchProof::Verify(ForestState state, const std::vector<uint256> roots, const std::vector<uint256> target_hashes) const
+/*bool Accumulator::BatchProof::Verify(ForestState state, const std::vector<Hash> roots, const std::vector<Hash> target_hashes) const
 {
     if (this->targets.size() != target_hashes.size()) {
         // TODO: error the number of targets does not math the number of provided hashes.
@@ -171,7 +180,7 @@ bool Accumulator::BatchProof::Verify(ForestState state, const std::vector<uint25
 
     // target_nodes holds nodes that are known, on the bottom row those
     // are the targets, on the upper rows it holds computed nodes.
-    std::vector<std::pair<uint64_t, uint256>> target_nodes;
+    std::vector<std::pair<uint64_t, Hash>> target_nodes;
     target_nodes.reserve(targets.size() * state.NumRows());
     for (uint64_t i = 0; i < this->targets.size(); ++i) {
         target_nodes.push_back(std::make_pair(this->targets[i], target_hashes[i]));
@@ -179,7 +188,7 @@ bool Accumulator::BatchProof::Verify(ForestState state, const std::vector<uint25
 
     // root_candidates holds the roots that were computed and have to be
     // compared to the actual roots at the end.
-    std::vector<uint256> root_candidates;
+    std::vector<Hash> root_candidates;
     root_candidates.reserve(roots.size());
 
     // Handle the row 0 root.
@@ -190,7 +199,7 @@ bool Accumulator::BatchProof::Verify(ForestState state, const std::vector<uint25
 
     uint64_t proof_index = 0;
     for (uint64_t target_index = 0; target_index < target_nodes.size();) {
-        std::pair<uint64_t, uint256> target = target_nodes[target_index], proof;
+        std::pair<uint64_t, Hash> target = target_nodes[target_index], proof;
 
         // Find the proof node. It will either be in the batch proof or in target_nodes.
         if (proof_index < proof_positions.size() && state.Sibling(target.first) == proof_positions[proof_index]) {
@@ -217,7 +226,7 @@ bool Accumulator::BatchProof::Verify(ForestState state, const std::vector<uint25
 
         // Compute the parent hash.
         uint64_t parent_pos = state.Parent(left.first);
-        uint256 parent_hash = Accumulator::ParentHash(left.second, right.second);
+        Hash parent_hash = Accumulator::ParentHash(left.second, right.second);
 
         uint64_t parent_row = state.DetectRow(parent_pos);
         if (state.HasRoot(parent_row) && parent_pos == state.RootPosition(parent_row)) {
@@ -235,7 +244,7 @@ bool Accumulator::BatchProof::Verify(ForestState state, const std::vector<uint25
     }
 
     uint8_t rootMatches = 0;
-    for (uint256 root : roots) {
+    for (Hash root : roots) {
         if (root_candidates.size() > rootMatches && root.Compare(root_candidates[rootMatches]) == 0) {
             ++rootMatches;
         }
@@ -247,7 +256,7 @@ bool Accumulator::BatchProof::Verify(ForestState state, const std::vector<uint25
     }
 
     return true;
-}
+}*/
 
 void Accumulator::BatchProof::Serialize(std::vector<uint8_t>& bytes) const
 {
@@ -268,8 +277,8 @@ void Accumulator::BatchProof::Serialize(std::vector<uint8_t>& bytes) const
         data_offset += 4;
     }
 
-    for (const uint256& hash : proof) {
-        std::memcpy(bytes.data() + data_offset, hash.begin(), 32);
+    for (const Hash& hash : proof) {
+        std::memcpy(bytes.data() + data_offset, hash.data(), 32);
         data_offset += 32;
     }
 }
@@ -302,8 +311,8 @@ bool Accumulator::BatchProof::Unserialize(const std::vector<uint8_t>& bytes)
     }
 
     for (uint32_t i = 0; i < num_hashes; ++i) {
-        uint256 hash;
-        std::memcpy(hash.begin(), bytes.data() + data_offset, 32);
+        Hash hash;
+        std::memcpy(hash.data(), bytes.data() + data_offset, 32);
         data_offset += 32;
         proof.push_back(hash);
     }
@@ -325,8 +334,8 @@ void Accumulator::BatchProof::Print()
     print_vector(this->targets);
 
     std::cout << "proof: ";
-    for (int i = 0; i < this->proof.size(); ++i) {
-        std::cout << proof[i].GetHex().substr(60, 64) << ", ";
+    for (const Hash& hash : proof) {
+        std::cout << HexStr(hash).substr(60, 64) << ", ";
     }
 
     std::cout << std::endl;

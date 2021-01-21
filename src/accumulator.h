@@ -1,29 +1,21 @@
 #ifndef UTREEXO_ACCUMULATOR_H
 #define UTREEXO_ACCUMULATOR_H
 
-#include <memory>
+#include <array>
 #include <nodepool.h>
 #include <state.h>
-#include <uint256.h>
+#include <utility>
 #include <vector>
+
+//typedef std::array<uint8_t, 32> Hash;
+//typedef std::pair<Hash, bool> Leaf;
+using Hash = std::array<uint8_t, 32>;
+using Leaf = std::pair<Hash, bool>;
 
 /** Provides an interface for a hash based dynamic accumulator. */
 class Accumulator
 {
 public:
-    /** Provides and interface for data that can be added to the accumulator. */
-    class Leaf
-    {
-    public:
-        /** Return the hash of the leaf. */
-        virtual uint256 Hash() const = 0;
-
-        /** Return whether or not this leaf should be remembered. This is ignored if the entire forest is stored. */
-        virtual bool Remember() const { return false; };
-
-        virtual ~Leaf() {}
-    };
-
     /** BatchProof represents a proof for multiple leaves. */
     class BatchProof
     {
@@ -32,14 +24,14 @@ public:
         std::vector<uint64_t> targets;
 
         // The proof hashes for the targets.
-        std::vector<uint256> proof;
+        std::vector<Hash> proof;
+
+        /*bool Verify(ForestState state, const std::vector<Hash>& roots, const std::vector<std::shared_ptr<Leaf>>& targetHashes) const;*/
 
     public:
-        BatchProof(std::vector<uint64_t> targets, std::vector<uint256> proof)
+        BatchProof(std::vector<uint64_t> targets, std::vector<Hash> proof)
             : targets(targets), proof(proof) {}
         BatchProof() {}
-
-        bool Verify(ForestState state, const std::vector<uint256> roots, const std::vector<uint256> targetHashes) const;
 
         void Serialize(std::vector<uint8_t>& bytes) const;
         bool Unserialize(const std::vector<uint8_t>& bytes);
@@ -53,23 +45,25 @@ public:
 
     virtual ~Accumulator() {}
 
-    /** Return a BatchProof that proves a set of target leaves. */
-    virtual const BatchProof Prove(const std::vector<uint256>& targetHashes) const = 0;
+    /** 
+     * Try to prove the provided targets. 
+     * Return true on success and false on failure.
+     */
+    virtual bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const = 0;
 
     /**
-     * Verify a proof.
+     * TODO: Verify a proof.
      * The internal state of the accumulator might be mutated but the roots will not.
      * Return whether or not the proof proved the targetHashes.
      */
-    bool Verify(const BatchProof& proof, const std::vector<uint256>& targetHashes);
+    /*bool Verify(const BatchProof& proof, const std::vector<Hash>& targetHashes);*/
 
     /** Modify the accumulator by adding leaves and removing targets. */
-    void Modify(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves,
+    void Modify(const std::vector<Leaf>& new_leaves,
                 const std::vector<uint64_t>& targets);
 
     /** Return the root hashes (roots of taller trees first) */
-    const std::vector<uint256> Roots() const;
-
+    void Roots(std::vector<Hash>& roots) const;
 
 protected:
     /*
@@ -97,7 +91,7 @@ protected:
          * Return the hash of the node.
          * This does not compute the hash only returns a previously computed hash.
          */
-        virtual const uint256& Hash() const = 0;
+        virtual const Hash& GetHash() const = 0;
 
         /* Recompute the hash from children nodes and return it. */
         virtual void ReHash() = 0;
@@ -128,22 +122,22 @@ protected:
     // After calling newLeaf, mergeRoot should be called for every consecutive least significant bit that is set to 1.
 
     /* Return the result of the latest merge. */
-    virtual NodePtr<Accumulator::Node> MergeRoot(uint64_t parent_pos, uint256 parent_hash) = 0;
+    virtual NodePtr<Accumulator::Node> MergeRoot(uint64_t parent_pos, Hash parent_hash) = 0;
     /* Allocate a new leaf and assign it the given hash */
-    virtual NodePtr<Accumulator::Node> NewLeaf(uint256& hash) = 0;
+    virtual NodePtr<Accumulator::Node> NewLeaf(const Leaf& leaf) = 0;
 
     /* Free memory or select new roots. */
     virtual void FinalizeRemove(const ForestState next_state) = 0;
 
     /* Add new leaves to the accumulator. */
-    virtual void Add(const std::vector<std::shared_ptr<Accumulator::Leaf>>& leaves);
+    virtual void Add(const std::vector<Leaf>& leaves);
     /* Remove target leaves from the accumulator. */
     void Remove(const std::vector<uint64_t>& targets);
 
     void PrintRoots(const std::vector<NodePtr<Accumulator::Node>>& roots) const;
 
     /* Compute the parent hash from to children. */
-    static uint256 ParentHash(const uint256& left, const uint256& right);
+    static void ParentHash(Hash& parent, const Hash& left, const Hash& right);
 };
 
 #endif // UTREEXO_ACCUMULATOR_H

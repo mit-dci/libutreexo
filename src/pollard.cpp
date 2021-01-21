@@ -38,7 +38,6 @@ std::vector<NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<
         uint8_t lr = (path_bits >> (path_length - 1 - i)) & 1;
         uint8_t lr_sib = m_state.Sibling(lr);
 
-        //auto int_node = new Pollard::Node(m_state, node_pos, node, rehash_path, sibling);
         if (record_path) {
             auto path_node = NodePtr<Pollard::Node>(m_nodepool);
             path_node->m_forest_state = m_state;
@@ -82,11 +81,10 @@ NodePtr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uint64_t to)
     return rehash_path;
 }
 
-NodePtr<Accumulator::Node> Pollard::NewLeaf(uint256& hash)
+NodePtr<Accumulator::Node> Pollard::NewLeaf(const Leaf& leaf)
 {
     auto int_node = NodePtr<InternalNode>(m_int_nodepool);
-    int_node->m_hash = hash;
-    //memcpy(int_node->m_hash.begin(), hash.begin(), 32);
+    int_node->m_hash = leaf.first;
     // TODO: dont remember everything
     int_node->m_nieces[0] = int_node;
     int_node->m_nieces[1] = nullptr;
@@ -100,7 +98,7 @@ NodePtr<Accumulator::Node> Pollard::NewLeaf(uint256& hash)
     return m_roots.back();
 }
 
-NodePtr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, uint256 parent_hash)
+NodePtr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, Hash parent_hash)
 {
     NodePtr<InternalNode> int_right = INTERNAL_NODE(m_roots.back());
     m_roots.pop_back();
@@ -111,7 +109,6 @@ NodePtr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, uint256 paren
 
     // create internal node
     auto int_node = NodePtr<InternalNode>(m_int_nodepool);
-    //memcpy(int_node->m_hash.begin(), parent_hash.begin(), 32);
     int_node->m_hash = parent_hash;
     int_node->m_nieces[0] = int_left;
     int_node->m_nieces[1] = int_right;
@@ -150,9 +147,13 @@ void Pollard::FinalizeRemove(const ForestState next_state)
     m_roots = new_roots;
 }
 
+bool Pollard::Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const
+{
+    return false;
+}
 // Pollard::Node
 
-const uint256& Pollard::Node::Hash() const
+const Hash& Pollard::Node::GetHash() const
 {
     return m_node.get()->m_hash;
 }
@@ -165,7 +166,7 @@ void Pollard::Node::ReHash()
         return;
     }
 
-    m_node->m_hash = Accumulator::ParentHash(m_sibling->m_nieces[0]->m_hash, m_sibling->m_nieces[1]->m_hash);
+    Accumulator::ParentHash(m_node->m_hash, m_sibling->m_nieces[0]->m_hash, m_sibling->m_nieces[1]->m_hash);
     m_sibling->Prune();
 }
 

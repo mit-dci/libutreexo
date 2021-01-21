@@ -11,7 +11,7 @@ private:
     class InternalNode
     {
     public:
-        uint256 m_hash;
+        Hash m_hash;
         NodePtr<InternalNode> m_nieces[2];
 
         InternalNode() {}
@@ -21,9 +21,9 @@ private:
         void Prune();
 
         /* 
-		 * Return wether or not this node is a deadend.
-		 * A node is a deadend if both nieces do not point to another node.
-		 */
+         * Return wether or not this node is a deadend.
+         * A node is a deadend if both nieces do not point to another node.
+         */
         bool DeadEnd() const;
 
         void NodePoolDestroy()
@@ -46,7 +46,7 @@ private:
         Node() {}
         ~Node() {}
 
-        const uint256& Hash() const override;
+        const Hash& GetHash() const override;
         void ReHash() override;
 
         void NodePoolDestroy() override
@@ -68,8 +68,8 @@ private:
     std::vector<NodePtr<Pollard::InternalNode>> Read(uint64_t pos, NodePtr<Accumulator::Node>& path, bool record_path) const;
 
     NodePtr<Accumulator::Node> SwapSubTrees(uint64_t from, uint64_t to) override;
-    NodePtr<Accumulator::Node> MergeRoot(uint64_t parent_pos, uint256 parent_hash) override;
-    NodePtr<Accumulator::Node> NewLeaf(uint256& hash) override;
+    NodePtr<Accumulator::Node> MergeRoot(uint64_t parent_pos, Hash parent_hash) override;
+    NodePtr<Accumulator::Node> NewLeaf(const Leaf& hash) override;
     void FinalizeRemove(const ForestState next_state) override;
 
 public:
@@ -87,14 +87,7 @@ public:
         delete m_nodepool;
     }
 
-    const Accumulator::BatchProof Prove(const std::vector<uint256>& targetHashes) const
-    {
-        // TODO: prove does not really make sense for the pollard.
-        // although you might want to prove cached leaves.
-        std::vector<uint64_t> targets;
-        const BatchProof proof(targets, std::vector<uint256>());
-        return proof;
-    }
+    bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const override;
 };
 
 #endif // UTREEXO_POLLARD_H
