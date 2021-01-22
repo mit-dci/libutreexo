@@ -29,6 +29,9 @@ void RamForest::Node::ReHash()
 NodePtr<Accumulator::Node> RamForest::Node::Parent() const
 {
     uint64_t parent_pos = this->m_forest_state.Parent(this->m_position);
+
+    // Check if this node is a root.
+    // If so return nullptr becauce roots do not have parents.
     uint8_t row = this->m_forest_state.DetectRow(this->m_position);
     bool row_has_root = this->m_forest_state.HasRoot(row);
     bool is_root = this->m_forest_state.RootPosition(row) == this->m_position;
@@ -36,11 +39,11 @@ NodePtr<Accumulator::Node> RamForest::Node::Parent() const
         return nullptr;
     }
 
+    // Return the parent of this node.
     auto node = NodePtr<RamForest::Node>(m_forest->m_nodepool);
     node->m_forest_state = m_forest_state;
     node->m_forest = m_forest;
     node->m_position = parent_pos;
-
     return node;
 }
 

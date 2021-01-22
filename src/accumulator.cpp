@@ -148,9 +148,9 @@ void Accumulator::Remove(const std::vector<uint64_t>& targets)
         // Rehash all the dirt after swapping.
         for (NodePtr<Accumulator::Node> dirt : dirty_nodes) {
             dirt->ReHash();
-            NodePtr<Accumulator::Node> parent = dirt->Parent();
-            if (parent && (next_dirty_nodes.size() == 0 || next_dirty_nodes.back()->m_position != parent->m_position)) {
-                next_dirty_nodes.push_back(parent);
+            if (next_dirty_nodes.size() == 0 || next_dirty_nodes.back()->m_position != m_state.Parent(dirt->m_position)) {
+                NodePtr<Accumulator::Node> parent = dirt->Parent();
+                if (parent) next_dirty_nodes.push_back(parent);
             }
         }
 
@@ -335,7 +335,7 @@ void Accumulator::BatchProof::Print()
 
     std::cout << "proof: ";
     for (const Hash& hash : proof) {
-        std::cout << HexStr(hash).substr(60, 64) << ", ";
+        std::cout << HexStr(hash) << ", ";
     }
 
     std::cout << std::endl;
