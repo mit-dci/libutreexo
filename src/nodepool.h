@@ -153,10 +153,10 @@ template <class T>
 void NodePool<T>::GiveBack(T* node)
 {
     if (node == nullptr || m_capacity == 0) return;
-    CHECK_SAFE(node >= m_elements && node < m_elements + m_capacity);
 
     int node_index = ((uint64_t)node - (uint64_t)m_elements) / m_type_size;
     assert(node_index < m_initialized);
+    CHECK_SAFE(node_index < m_capacity);
 
     --m_num_taken;
 
