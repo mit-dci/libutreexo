@@ -217,7 +217,7 @@ ForestState::ProofPositions(const std::vector<uint64_t>& targets) const
                     // => both siblings are part of the proof
                     // => both parents are targets for the next row
                     proof.insert(proof.end(),
-                                 {(start[0]), (start[1])});
+                                 {this->Sibling(start[0]), this->Sibling(start[1])});
                     nextTargets.insert(nextTargets.end(),
                                        {this->Parent(start[0]), this->Parent(start[1])});
                     start += 2;
@@ -456,7 +456,7 @@ std::vector<ForestState::Swap> ForestState::MakeSwaps(const std::vector<uint64_t
     while (targets.end() - start > 1) {
         // Look at 2 targets at a time and create a swap that turns both deletions into siblings.
         // This is possible because all nodes in `targets` are not siblings (thanks to `computeNextRowTargets`).
-        swaps.push_back(ForestState::Swap((start[1]), start[0]));
+        swaps.push_back(ForestState::Swap(this->Sibling(start[1]), start[0]));
         start += 2;
     }
 
@@ -487,7 +487,7 @@ ForestState::Swap ForestState::MakeCollapse(const std::vector<uint64_t>& targets
     if (deletion_remains && !root_present) {
         // There is no root but there is a remaining deletion.
         // => The sibling of the remaining deletion becomes a root.
-        return ForestState::Swap((targets.back()), root_dest, true);
+        return ForestState::Swap(this->Sibling(targets.back()), root_dest, true);
     }
 
     // No collapse on this row.
