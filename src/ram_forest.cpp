@@ -179,7 +179,8 @@ void RamForest::FinalizeRemove(const ForestState next_state)
         auto new_root = NodePtr<RamForest::Node>(m_nodepool);
         new_root->m_forest = this;
         new_root->m_position = new_pos;
-        Read(new_root->m_hash, new_pos);
+        bool ok = Read(new_root->m_hash, new_pos);
+        assert(ok);
         new_roots.push_back(new_root);
     }
 
@@ -209,7 +210,7 @@ bool RamForest::Prove(BatchProof& proof, const std::vector<Hash>& targetHashes) 
     }
 
     proof = BatchProof(targets, proof_hashes);
-    return false;
+    return true;
 }
 
 void RamForest::Add(const std::vector<Leaf>& leaves)

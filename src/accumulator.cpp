@@ -6,10 +6,13 @@
 #include <iostream>
 #include <stdio.h>
 
-void Accumulator::Modify(const std::vector<Leaf>& leaves, const std::vector<uint64_t>& targets)
+bool Accumulator::Modify(const std::vector<Leaf>& leaves, const std::vector<uint64_t>& targets)
 {
-    this->Remove(targets);
-    this->Add(leaves);
+    if (!Remove(targets)) return false;
+    // Addition can/should never fail.
+    Add(leaves);
+
+    return true;
 }
 
 void Accumulator::Roots(std::vector<Hash>& roots) const
@@ -54,9 +57,9 @@ std::string HexStr(const T s)
     return rv;
 }
 
-void Accumulator::PrintRoots(const std::vector<NodePtr<Accumulator::Node>>& roots) const
+void Accumulator::PrintRoots() const
 {
-    for (auto root : roots) {
+    for (auto root : m_roots) {
         std::cout << "root: " << root->m_position << ":" << HexStr(root->GetHash()) << std::endl;
     }
 }
@@ -108,25 +111,25 @@ bool IsSortedNoDupes(const std::vector<uint64_t>& targets)
     return true;
 }
 
-void Accumulator::Remove(const std::vector<uint64_t>& targets)
+bool Accumulator::Remove(const std::vector<uint64_t>& targets)
 {
     if (targets.size() == 0) {
-        return;
+        return true;
     }
 
     if (m_state.m_num_leaves < targets.size()) {
-        // TODO: error deleting more targets than elemnts in the accumulator.
-        return;
+        // error deleting more targets than elemnts in the accumulator.
+        return false;
     }
 
     if (!IsSortedNoDupes(targets)) {
-        // TODO: error targets are not sorted or contain duplicates.
-        return;
+        // error, targets are not sorted or contain duplicates.
+        return false;
     }
 
     if (targets.back() >= m_state.m_num_leaves) {
-        // TODO: error targets not in the accumulator.
-        return;
+        // error targets not in the accumulator.
+        return false;
     }
 
     std::vector<std::vector<ForestState::Swap>> swaps = m_state.Transform(targets);
@@ -140,7 +143,7 @@ void Accumulator::Remove(const std::vector<uint64_t>& targets)
         if (row < swaps.size()) {
             // Execute all the swaps in this row.
             for (const ForestState::Swap swap : swaps.at(row)) {
-                NodePtr<Accumulator::Node> swap_dirt = this->SwapSubTrees(swap.m_from, swap.m_to);
+                NodePtr<Accumulator::Node> swap_dirt = SwapSubTrees(swap.m_from, swap.m_to);
                 dirty_nodes.push_back(swap_dirt);
             }
         }
@@ -158,8 +161,10 @@ void Accumulator::Remove(const std::vector<uint64_t>& targets)
     }
 
     ForestState next_state(m_state.m_num_leaves - targets.size());
-    this->FinalizeRemove(next_state);
+    FinalizeRemove(next_state);
     m_state.Remove(targets.size());
+
+    return true;
 }
 
 // Accumulator::BatchProof

@@ -33,6 +33,8 @@ public:
             : targets(targets), proof(proof) {}
         BatchProof() {}
 
+        const std::vector<uint64_t>& GetTargets() const { return targets; }
+
         void Serialize(std::vector<uint8_t>& bytes) const;
         bool Unserialize(const std::vector<uint8_t>& bytes);
 
@@ -59,11 +61,13 @@ public:
     /*bool Verify(const BatchProof& proof, const std::vector<Hash>& targetHashes);*/
 
     /** Modify the accumulator by adding leaves and removing targets. */
-    void Modify(const std::vector<Leaf>& new_leaves,
+    bool Modify(const std::vector<Leaf>& new_leaves,
                 const std::vector<uint64_t>& targets);
 
     /** Return the root hashes (roots of taller trees first) */
     void Roots(std::vector<Hash>& roots) const;
+
+    void PrintRoots() const;
 
 protected:
     /*
@@ -132,9 +136,7 @@ protected:
     /* Add new leaves to the accumulator. */
     virtual void Add(const std::vector<Leaf>& leaves);
     /* Remove target leaves from the accumulator. */
-    void Remove(const std::vector<uint64_t>& targets);
-
-    void PrintRoots(const std::vector<NodePtr<Accumulator::Node>>& roots) const;
+    bool Remove(const std::vector<uint64_t>& targets);
 
     /* Compute the parent hash from to children. */
     static void ParentHash(Hash& parent, const Hash& left, const Hash& right);
