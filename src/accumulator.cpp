@@ -1,7 +1,7 @@
 #include "crypto/common.h"
 #include <accumulator.h>
 #include <check.h>
-#include <crypto/sha256.h>
+#include <crypto/sha512.h>
 #include <cstring>
 #include <iostream>
 #include <stdio.h>
@@ -30,7 +30,7 @@ void Accumulator::ParentHash(Hash& parent, const Hash& left, const Hash& right)
     //CHECK_SAFE(!left.IsNull());
     //CHECK_SAFE(!right.IsNull());
 
-    CSHA256 hasher;
+    CSHA512 hasher(CSHA512::OUTPUT_SIZE_256);
 
     // copy the two hashes into one 64 byte buffer
     uint8_t data[64];
@@ -39,7 +39,7 @@ void Accumulator::ParentHash(Hash& parent, const Hash& left, const Hash& right)
     hasher.Write(data, 64);
 
     // finalize the hash and write it into parentHash
-    hasher.Finalize(parent.data());
+    hasher.Finalize256(parent.data());
 }
 
 // https://github.com/bitcoin/bitcoin/blob/7f653c3b22f0a5267822eec017aea6a16752c597/src/util/strencodings.cpp#L580
