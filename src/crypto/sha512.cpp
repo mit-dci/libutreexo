@@ -28,7 +28,7 @@ void inline Round(uint64_t a, uint64_t b, uint64_t c, uint64_t& d, uint64_t e, u
     h = t1 + t2;
 }
 
-/** Initialize SHA-256 state. */
+/** Initialize SHA-512 state. */
 void inline Initialize(uint64_t* s)
 {
     s[0] = 0x6a09e667f3bcc908ull;
@@ -39,6 +39,19 @@ void inline Initialize(uint64_t* s)
     s[5] = 0x9b05688c2b3e6c1full;
     s[6] = 0x1f83d9abfb41bd6bull;
     s[7] = 0x5be0cd19137e2179ull;
+}
+
+/** Initialize SHA-512/256 state. */
+void inline Initialize256(uint64_t* s)
+{
+    s[0] = 0x22312194fc2bf72cull;
+    s[1] = 0x9f555fa3c84c64c2ull;
+    s[2] = 0x2393b86b6f53b151ull;
+    s[3] = 0x963877195940eabdull;
+    s[4] = 0x96283ee2a88effe3ull;
+    s[5] = 0xbe5e1e2553863992ull;
+    s[6] = 0x2b0199fc2c85b8aaull;
+    s[7] = 0x0eb72ddc81c52ca2ull;
 }
 
 /** Perform one SHA-512 transformation, processing a 128-byte chunk. */
@@ -152,6 +165,17 @@ void Transform(uint64_t* s, const unsigned char* chunk)
 CSHA512::CSHA512() : bytes(0)
 {
     sha512::Initialize(s);
+}
+
+CSHA512::CSHA512(int output_size) : bytes(0)
+{
+    switch (output_size) {
+    case OUTPUT_SIZE_256:
+        sha512::Initialize256(s);
+        break;
+    default:
+        sha512::Initialize(s);
+    }
 }
 
 CSHA512& CSHA512::Write(const unsigned char* data, size_t len)

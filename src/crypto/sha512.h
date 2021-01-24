@@ -18,11 +18,13 @@ private:
 
 public:
     static constexpr size_t OUTPUT_SIZE = 64;
+    static constexpr size_t OUTPUT_SIZE_256 = 32;
 
     CSHA512();
+    CSHA512(int output_size);
     CSHA512& Write(const unsigned char* data, size_t len);
     void Finalize(unsigned char hash[OUTPUT_SIZE]);
-    void Finalize256(unsigned char hash[OUTPUT_SIZE]);
+    void Finalize256(unsigned char hash[OUTPUT_SIZE_256]);
 
     CSHA512& Reset();
     uint64_t Size() const { return bytes; }
