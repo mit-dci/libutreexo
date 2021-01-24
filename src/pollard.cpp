@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <crypto/sha256.h>
 #include <iostream>
 #include <pollard.h>
 #include <string.h>
