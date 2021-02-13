@@ -159,6 +159,7 @@ void Transform(uint64_t* s, const unsigned char* chunk)
 
 } // namespace
 
+namespace utreexo {
 
 ////// SHA-512
 
@@ -240,3 +241,5 @@ CSHA512& CSHA512::Reset()
     sha512::Initialize(s);
     return *this;
 }
+
+}; // namespace utreexo

@@ -8,6 +8,8 @@
 #include <state.h>
 BOOST_AUTO_TEST_SUITE(accumulator_tests)
 
+using namespace utreexo;
+
 void SetHash(Hash& hash, int num)
 {
     for (uint8_t& byte : hash) {

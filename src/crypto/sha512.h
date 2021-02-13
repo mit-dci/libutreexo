@@ -2,11 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_CRYPTO_SHA512_H
-#define BITCOIN_CRYPTO_SHA512_H
+#ifndef UTREEXO_CRYPTO_SHA512_H
+#define UTREEXO_CRYPTO_SHA512_H
 
 #include <stdint.h>
 #include <stdlib.h>
+
+namespace utreexo {
 
 /** A hasher class for SHA-512. */
 class CSHA512
@@ -30,4 +32,5 @@ public:
     uint64_t Size() const { return bytes; }
 };
 
-#endif // BITCOIN_CRYPTO_SHA512_H
+};     // namespace utreexo
+#endif // UTREEXO_CRYPTO_SHA512_H

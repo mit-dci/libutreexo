@@ -1,6 +1,8 @@
 #include <boost/test/unit_test.hpp>
 #include <state.h>
 
+using namespace utreexo;
+
 BOOST_AUTO_TEST_SUITE(state_tests)
 
 BOOST_AUTO_TEST_CASE(constructor)

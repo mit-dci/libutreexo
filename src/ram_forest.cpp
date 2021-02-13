@@ -1,6 +1,8 @@
 #include <iostream>
 #include <ram_forest.h>
 
+namespace utreexo {
+
 // RamForest::Node
 const Hash& RamForest::Node::GetHash() const
 {
@@ -230,3 +232,5 @@ void RamForest::Add(const std::vector<Leaf>& leaves)
 
     assert(m_posmap.size() == m_state.m_num_leaves);
 }
+
+}; // namespace utreexo

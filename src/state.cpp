@@ -5,6 +5,8 @@
 #include <memory>
 #include <state.h>
 
+namespace utreexo {
+
 void print_vector(const std::vector<uint64_t>& vec)
 {
     for (auto i : vec)
@@ -552,3 +554,5 @@ void ForestState::SwapIfDescendant(ForestState::Swap swap,
         collapse.m_to ^= (swap.m_from ^ swap.m_to) << row_diff;
     }
 }
+
+}; // namespace utreexo

@@ -5,6 +5,8 @@
 #include <memory>
 #include <nodepool.h>
 
+namespace utreexo {
+
 class Pollard : public Accumulator
 {
 private:
@@ -90,4 +92,5 @@ public:
     bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const override;
 };
 
+};     // namespace utreexo
 #endif // UTREEXO_POLLARD_H

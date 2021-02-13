@@ -5,6 +5,7 @@
 #include <crypto/common.h>
 #include <unordered_map>
 
+namespace utreexo {
 struct LeafHasher {
     size_t operator()(const Hash& hash) const { return ReadLE64(hash.data()); }
 };
@@ -60,4 +61,5 @@ public:
     void Add(const std::vector<Leaf>& leaves) override;
 };
 
+};     // namespace utreexo
 #endif // UTREEXO_RAMFOREST_H

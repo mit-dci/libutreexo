@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <vector>
 
+namespace utreexo {
+
 /**
  * Represents the state of the accumulator forest.
  * Provides utility functions to compute positions, check for roots, transforms, rows, ...
@@ -161,4 +163,5 @@ private:
 void print_vector(const std::vector<uint64_t>& vec);
 void print_swaps(const std::vector<ForestState::Swap>& vec);
 
+};     // namespace utreexo
 #endif // UTREEXO_STATE_H

@@ -6,6 +6,8 @@
 // Get the internal node from a NodePtr<Accumulator::Node>.
 #define INTERNAL_NODE(acc_node) (((Pollard::Node*)acc_node.get())->m_node)
 
+namespace utreexo {
+
 // Pollard
 
 std::vector<NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<Accumulator::Node>& rehash_path, bool record_path) const
@@ -186,3 +188,5 @@ bool Pollard::InternalNode::DeadEnd() const
 {
     return !m_nieces[0] && !m_nieces[1];
 }
+
+}; // namespace utreexo

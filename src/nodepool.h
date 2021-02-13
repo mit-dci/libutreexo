@@ -6,6 +6,8 @@
 #include <iostream>
 #include <type_traits>
 
+namespace utreexo {
+
 template <class T>
 class NodePool;
 template <class T>
@@ -379,4 +381,5 @@ int NodePtr<T>::RefCount()
     return 0;
 }
 
+};     // namespace utreexo
 #endif // UTREEXO_NODEPOOL_H

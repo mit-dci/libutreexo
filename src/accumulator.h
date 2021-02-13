@@ -7,8 +7,7 @@
 #include <utility>
 #include <vector>
 
-//typedef std::array<uint8_t, 32> Hash;
-//typedef std::pair<Hash, bool> Leaf;
+namespace utreexo {
 using Hash = std::array<uint8_t, 32>;
 using Leaf = std::pair<Hash, bool>;
 
@@ -142,4 +141,5 @@ protected:
     static void ParentHash(Hash& parent, const Hash& left, const Hash& right);
 };
 
+};     // namespace utreexo
 #endif // UTREEXO_ACCUMULATOR_H

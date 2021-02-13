@@ -6,6 +6,8 @@
 #include <iostream>
 #include <stdio.h>
 
+namespace utreexo {
+
 bool Accumulator::Modify(const std::vector<Leaf>& leaves, const std::vector<uint64_t>& targets)
 {
     if (!Remove(targets)) return false;
@@ -345,3 +347,5 @@ void Accumulator::BatchProof::Print()
 
     std::cout << std::endl;
 }
+
+}; // namespace utreexo
