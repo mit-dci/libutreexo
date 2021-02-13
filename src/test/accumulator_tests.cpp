@@ -1,4 +1,5 @@
 #include <accumulator.h>
+#include <batchproof.h>
 #include <boost/test/unit_test.hpp>
 #include <chrono>
 #include <cstring>
@@ -92,11 +93,11 @@ BOOST_AUTO_TEST_CASE(batchproof_serialization)
     full->Modify(leaves, std::vector<uint64_t>());
 
     std::vector<uint8_t> proof_bytes;
-    Accumulator::BatchProof proof1;
+    BatchProof proof1;
     full->Prove(proof1, {leaves[0].first, leaves[1].first});
     proof1.Serialize(proof_bytes);
 
-    Accumulator::BatchProof proof2;
+    BatchProof proof2;
     BOOST_CHECK(proof2.Unserialize(proof_bytes));
     BOOST_CHECK(proof1 == proof2);
 }

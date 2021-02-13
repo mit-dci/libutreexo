@@ -10,6 +10,8 @@ struct LeafHasher {
     size_t operator()(const Hash& hash) const { return ReadLE64(hash.data()); }
 };
 
+class BatchProof;
+
 class RamForest : public Accumulator
 {
 private:
@@ -57,7 +59,7 @@ public:
         m_nodepool = new NodePool<Node>(max_nodes);
     }
 
-    bool Prove(Accumulator::BatchProof& proof, const std::vector<Hash>& target_hashes) const override;
+    bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const override;
     void Add(const std::vector<Leaf>& leaves) override;
 };
 

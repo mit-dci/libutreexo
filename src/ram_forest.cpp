@@ -1,3 +1,4 @@
+#include <batchproof.h>
 #include <iostream>
 #include <ram_forest.h>
 

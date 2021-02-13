@@ -1,4 +1,5 @@
 #ifndef UTREEXO_ACCUMULATOR_H
+
 #define UTREEXO_ACCUMULATOR_H
 
 #include <array>
@@ -11,39 +12,13 @@ namespace utreexo {
 using Hash = std::array<uint8_t, 32>;
 using Leaf = std::pair<Hash, bool>;
 
+class BatchProof;
+
 /** Provides an interface for a hash based dynamic accumulator. */
 class Accumulator
 {
 public:
-    /** BatchProof represents a proof for multiple leaves. */
-    class BatchProof
-    {
-    private:
-        // The positions of the leaves that are being proven.
-        std::vector<uint64_t> targets;
-
-        // The proof hashes for the targets.
-        std::vector<Hash> proof;
-
-        /*bool Verify(ForestState state, const std::vector<Hash>& roots, const std::vector<std::shared_ptr<Leaf>>& targetHashes) const;*/
-
-    public:
-        BatchProof(std::vector<uint64_t> targets, std::vector<Hash> proof)
-            : targets(targets), proof(proof) {}
-        BatchProof() {}
-
-        const std::vector<uint64_t>& GetTargets() const { return targets; }
-
-        void Serialize(std::vector<uint8_t>& bytes) const;
-        bool Unserialize(const std::vector<uint8_t>& bytes);
-
-        bool operator==(const BatchProof& other);
-
-        void Print();
-    };
-
     Accumulator(ForestState& state) : m_state(state) { this->m_roots.reserve(64); }
-
     virtual ~Accumulator() {}
 
     /** 
@@ -60,8 +35,7 @@ public:
     /*bool Verify(const BatchProof& proof, const std::vector<Hash>& targetHashes);*/
 
     /** Modify the accumulator by adding leaves and removing targets. */
-    bool Modify(const std::vector<Leaf>& new_leaves,
-                const std::vector<uint64_t>& targets);
+    bool Modify(const std::vector<Leaf>& new_leaves, const std::vector<uint64_t>& targets);
 
     /** Return the root hashes (roots of taller trees first) */
     void Roots(std::vector<Hash>& roots) const;
