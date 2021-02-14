@@ -4,9 +4,16 @@
 #include <crypto/sha512.h>
 #include <cstring>
 #include <iostream>
+#include <state.h>
 #include <stdio.h>
 
 namespace utreexo {
+
+Accumulator::Accumulator(uint64_t num_leaves)
+{
+    m_num_leaves = num_leaves;
+    m_roots.reserve(64);
+}
 
 bool Accumulator::Modify(const std::vector<Leaf>& leaves, const std::vector<uint64_t>& targets)
 {
@@ -68,6 +75,7 @@ void Accumulator::PrintRoots() const
 
 void Accumulator::Add(const std::vector<Leaf>& leaves)
 {
+    ForestState current_state(m_num_leaves);
     // Adding leaves can't be batched, so we add one by one.
     for (auto leaf = leaves.begin(); leaf < leaves.end(); ++leaf) {
         int root = m_roots.size() - 1;
@@ -75,30 +83,30 @@ void Accumulator::Add(const std::vector<Leaf>& leaves)
         NodePtr<Accumulator::Node> new_root = this->NewLeaf(*leaf);
 
         // Merge the last two roots into one for every consecutive root from row 0 upwards.
-        for (uint8_t row = 0; m_state.HasRoot(row); ++row) {
+        for (uint8_t row = 0; current_state.HasRoot(row); ++row) {
             Hash parent_hash;
             Accumulator::ParentHash(parent_hash, m_roots[root]->GetHash(), new_root->GetHash());
-            new_root = MergeRoot(m_state.Parent(new_root->m_position), parent_hash);
+            new_root = MergeRoot(current_state.Parent(new_root->m_position), parent_hash);
             // Decreasing because we are going in reverse order.
             --root;
         }
 
-        // Update the state by adding one leaf.
-        uint8_t prev_rows = m_state.NumRows();
-        m_state.Add(1);
+        ++m_num_leaves;
+        current_state = ForestState(m_num_leaves);
 
         // Update the root positions.
         // This only needs to happen if the number of rows in the forest changes.
         // In this case there will always be exactly two roots, one on row 0 and one
         // on the next-to-last row.
 
-        if (prev_rows == 0 || prev_rows == m_state.NumRows()) {
+        uint8_t prev_rows = current_state.NumRows();
+        if (prev_rows == 0 || prev_rows == current_state.NumRows()) {
             continue;
         }
 
         assert(m_roots.size() >= 2);
-        m_roots[1]->m_position = m_state.RootPosition(0);
-        m_roots[0]->m_position = m_state.RootPosition(m_state.NumRows() - 1);
+        m_roots[1]->m_position = current_state.RootPosition(0);
+        m_roots[0]->m_position = current_state.RootPosition(current_state.NumRows() - 1);
     }
 }
 
@@ -119,7 +127,7 @@ bool Accumulator::Remove(const std::vector<uint64_t>& targets)
         return true;
     }
 
-    if (m_state.m_num_leaves < targets.size()) {
+    if (m_num_leaves < targets.size()) {
         // error deleting more targets than elemnts in the accumulator.
         return false;
     }
@@ -129,17 +137,19 @@ bool Accumulator::Remove(const std::vector<uint64_t>& targets)
         return false;
     }
 
-    if (targets.back() >= m_state.m_num_leaves) {
+    if (targets.back() >= m_num_leaves) {
         // error targets not in the accumulator.
         return false;
     }
 
-    std::vector<std::vector<ForestState::Swap>> swaps = m_state.Transform(targets);
+    ForestState current_state(m_num_leaves);
+
+    std::vector<std::vector<ForestState::Swap>> swaps = current_state.Transform(targets);
     // Store the nodes that have to be rehashed because their children changed.
     // These nodes are "dirty".
     std::vector<NodePtr<Accumulator::Node>> dirty_nodes;
 
-    for (uint8_t row = 0; row < m_state.NumRows(); ++row) {
+    for (uint8_t row = 0; row < current_state.NumRows(); ++row) {
         std::vector<NodePtr<Accumulator::Node>> next_dirty_nodes;
 
         if (row < swaps.size()) {
@@ -153,7 +163,7 @@ bool Accumulator::Remove(const std::vector<uint64_t>& targets)
         // Rehash all the dirt after swapping.
         for (NodePtr<Accumulator::Node> dirt : dirty_nodes) {
             dirt->ReHash();
-            if (next_dirty_nodes.size() == 0 || next_dirty_nodes.back()->m_position != m_state.Parent(dirt->m_position)) {
+            if (next_dirty_nodes.size() == 0 || next_dirty_nodes.back()->m_position != current_state.Parent(dirt->m_position)) {
                 NodePtr<Accumulator::Node> parent = dirt->Parent();
                 if (parent) next_dirty_nodes.push_back(parent);
             }
@@ -162,10 +172,11 @@ bool Accumulator::Remove(const std::vector<uint64_t>& targets)
         dirty_nodes = next_dirty_nodes;
     }
 
-    ForestState next_state(m_state.m_num_leaves - targets.size());
-    FinalizeRemove(next_state);
-    m_state.Remove(targets.size());
+    uint64_t next_num_leaves = m_num_leaves - targets.size();
+    FinalizeRemove(next_num_leaves);
+    m_num_leaves = next_num_leaves;
 
     return true;
 }
+
 }; // namespace utreexo

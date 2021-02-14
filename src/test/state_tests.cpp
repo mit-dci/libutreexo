@@ -44,19 +44,6 @@ BOOST_AUTO_TEST_CASE(positions)
     BOOST_CHECK(state.Cousin(5) == 7);
 }
 
-BOOST_AUTO_TEST_CASE(change)
-{
-    ForestState state;
-    for (int i = 0; i < 100; i++) {
-        state.Add(1);
-    }
-    BOOST_CHECK(state.m_num_leaves == 100);
-    for (int i = 0; i < 100; i++) {
-        state.Remove(1);
-    }
-    BOOST_CHECK(state.m_num_leaves == 0);
-}
-
 BOOST_AUTO_TEST_CASE(proof)
 {
     /*

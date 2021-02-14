@@ -49,10 +49,10 @@ private:
     NodePtr<Accumulator::Node> SwapSubTrees(uint64_t from, uint64_t to) override;
     NodePtr<Accumulator::Node> MergeRoot(uint64_t parent_pos, Hash parent_hash) override;
     NodePtr<Accumulator::Node> NewLeaf(const Leaf& leaf) override;
-    void FinalizeRemove(const ForestState next_state) override;
+    void FinalizeRemove(uint64_t next_num_leaves) override;
 
 public:
-    RamForest(ForestState& state, int max_nodes) : Accumulator(state)
+    RamForest(uint64_t num_leaves, int max_nodes) : Accumulator(num_leaves)
     {
         this->m_data = std::vector<std::vector<Hash>>();
         this->m_data.push_back(std::vector<Hash>());

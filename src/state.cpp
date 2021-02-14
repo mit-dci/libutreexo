@@ -357,14 +357,6 @@ uint64_t ForestState::RowOffset(uint64_t pos) const
 
 // transform
 
-void ForestState::Add(uint64_t num) { this->m_num_leaves += num; }
-
-void ForestState::Remove(uint64_t num)
-{
-    CHECK_SAFE(this->m_num_leaves - num >= 0);
-    this->m_num_leaves -= num;
-}
-
 std::vector<std::vector<ForestState::Swap>>
 ForestState::Transform(const std::vector<uint64_t>& targets) const
 {

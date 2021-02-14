@@ -8,8 +8,9 @@
 namespace utreexo {
 
 /**
- * Represents the state of the accumulator forest.
- * Provides utility functions to compute positions, check for roots, transforms, rows, ...
+ * A wrapper around the number of leaves the accumulator forest
+ * that provides utility functions to compute positions and swaps,
+ * check for roots, etc.
  */
 class ForestState
 {
@@ -33,6 +34,7 @@ public:
     };
 
     // The number of leaves in the forest.
+    // TODO: make this private.
     uint64_t m_num_leaves;
 
     ForestState() : m_num_leaves(0) {}
@@ -94,15 +96,6 @@ public:
     uint8_t DetectRow(uint64_t pos) const;
     // Return the position of the first node in the row.
     uint64_t RowOffset(uint64_t pos) const;
-
-    // Functions for modification of the state.
-    // These functions are the only ones that may change the state.
-
-    // Add leaves to the state.
-    void Add(uint64_t num);
-
-    // Remove leaves from the state.
-    void Remove(uint64_t num);
 
     /**
      * Compute the remove transformation swaps.

@@ -72,10 +72,10 @@ private:
     NodePtr<Accumulator::Node> SwapSubTrees(uint64_t from, uint64_t to) override;
     NodePtr<Accumulator::Node> MergeRoot(uint64_t parent_pos, Hash parent_hash) override;
     NodePtr<Accumulator::Node> NewLeaf(const Leaf& hash) override;
-    void FinalizeRemove(const ForestState next_state) override;
+    void FinalizeRemove(uint64_t next_num_leaves) override;
 
 public:
-    Pollard(ForestState& state, int max_nodes) : Accumulator(state)
+    Pollard(uint64_t num_leaves, int max_nodes) : Accumulator(num_leaves)
     {
         // TODO: find good capacity for both pools.
         m_int_nodepool = new NodePool<Pollard::InternalNode>(max_nodes);

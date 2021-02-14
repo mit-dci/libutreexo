@@ -6,7 +6,6 @@
 #include <nodepool.h>
 #include <pollard.h>
 #include <ram_forest.h>
-#include <state.h>
 BOOST_AUTO_TEST_SUITE(accumulator_tests)
 
 using namespace utreexo;
@@ -35,8 +34,7 @@ void CreateTestLeaves(std::vector<Leaf>& leaves, int count)
 
 BOOST_AUTO_TEST_CASE(simple_add)
 {
-    ForestState state(0);
-    Accumulator* full = (Accumulator*)new Pollard(state, 160);
+    Accumulator* full = (Accumulator*)new Pollard(0, 160);
     auto start = std::chrono::high_resolution_clock::now();
 
     std::vector<Leaf> leaves;
@@ -51,8 +49,7 @@ BOOST_AUTO_TEST_CASE(simple_add)
 
 BOOST_AUTO_TEST_CASE(simple_full)
 {
-    ForestState state(0);
-    Accumulator* full = (Accumulator*)new RamForest(state, 32);
+    Accumulator* full = (Accumulator*)new RamForest(0, 32);
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 16);
@@ -67,25 +64,24 @@ BOOST_AUTO_TEST_CASE(simple_full)
 
 BOOST_AUTO_TEST_CASE(simple_pruned)
 {
-    ForestState state(0);
-    Accumulator* full = (Accumulator*)new Pollard(state, 32);
+    Accumulator* full = (Accumulator*)new Pollard(0, 64);
 
     std::vector<Leaf> leaves;
-    CreateTestLeaves(leaves, 16);
+    CreateTestLeaves(leaves, 32);
 
     // Add test leaves, dont delete any.
     full->Modify(leaves, std::vector<uint64_t>());
     // Delete some leaves, dont add any new ones.
     leaves.clear();
     full->Modify(leaves, {0, 2, 3, 9});
+    full->PrintRoots();
 
     delete full;
 }
 
 BOOST_AUTO_TEST_CASE(batchproof_serialization)
 {
-    ForestState state(0);
-    Accumulator* full = (Accumulator*)new RamForest(state, 64);
+    Accumulator* full = (Accumulator*)new RamForest(0, 64);
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 32);

@@ -4,7 +4,6 @@
 
 #include <array>
 #include <nodepool.h>
-#include <state.h>
 #include <utility>
 #include <vector>
 
@@ -18,7 +17,7 @@ class BatchProof;
 class Accumulator
 {
 public:
-    Accumulator(ForestState& state) : m_state(state) { this->m_roots.reserve(64); }
+    Accumulator(uint64_t num_leaves);
     virtual ~Accumulator() {}
 
     /** 
@@ -52,8 +51,8 @@ protected:
     class Node
     {
     public:
-        // The forest state in which this node was created.
-        ForestState m_forest_state;
+        // The number of leaves at the time this node was created.
+        uint64_t m_num_leaves;
 
         // A pointer to the parent node.
         // This is useful if you want to rehash a path from the bottom up.
@@ -82,8 +81,8 @@ protected:
         virtual void NodePoolDestroy() { m_parent = nullptr; }
     };
 
-    // The state of the forest.
-    ForestState& m_state;
+    // The number of leaves in the forest.
+    uint64_t m_num_leaves;
 
     // The roots of the accumulator.
     std::vector<NodePtr<Accumulator::Node>> m_roots;
@@ -104,7 +103,7 @@ protected:
     virtual NodePtr<Accumulator::Node> NewLeaf(const Leaf& leaf) = 0;
 
     /* Free memory or select new roots. */
-    virtual void FinalizeRemove(const ForestState next_state) = 0;
+    virtual void FinalizeRemove(uint64_t next_num_leaves) = 0;
 
     /* Add new leaves to the accumulator. */
     virtual void Add(const std::vector<Leaf>& leaves);
