@@ -2,7 +2,6 @@
 #define UTREEXO_ACCUMULATOR_H
 
 #include <array>
-#include <nodepool.h>
 #include <utility>
 #include <vector>
 
@@ -48,6 +47,11 @@ protected:
      * algorithms are quite nicely expressed using one.
      */
     class Node;
+
+    template <class T>
+    class NodePool;
+    template <class T>
+    class NodePtr;
 
     // The number of leaves in the forest.
     uint64_t m_num_leaves;

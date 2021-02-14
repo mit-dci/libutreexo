@@ -5,6 +5,7 @@
 #include <cstring>
 #include <iostream>
 #include <node.h>
+#include <nodepool.h>
 #include <state.h>
 #include <stdio.h>
 

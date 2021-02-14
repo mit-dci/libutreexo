@@ -48,7 +48,7 @@ void RamForest::Node::ReHash()
     rowData[this->m_position - offset] = this->m_hash;
 }
 
-NodePtr<Accumulator::Node> RamForest::Node::Parent() const
+Accumulator::NodePtr<Accumulator::Node> RamForest::Node::Parent() const
 {
     ForestState state(m_num_leaves);
     uint64_t parent_pos = state.Parent(this->m_position);
@@ -119,7 +119,7 @@ void RamForest::SwapRange(uint64_t from, uint64_t to, uint64_t range)
     }
 }
 
-NodePtr<Accumulator::Node> RamForest::SwapSubTrees(uint64_t from, uint64_t to)
+Accumulator::NodePtr<Accumulator::Node> RamForest::SwapSubTrees(uint64_t from, uint64_t to)
 {
     ForestState current_state(m_num_leaves);
     // posA and posB are on the same row
@@ -143,7 +143,7 @@ NodePtr<Accumulator::Node> RamForest::SwapSubTrees(uint64_t from, uint64_t to)
     return node;
 }
 
-NodePtr<Accumulator::Node> RamForest::MergeRoot(uint64_t parent_pos, Hash parent_hash)
+Accumulator::NodePtr<Accumulator::Node> RamForest::MergeRoot(uint64_t parent_pos, Hash parent_hash)
 {
     assert(m_roots.size() >= 2);
 
@@ -167,7 +167,7 @@ NodePtr<Accumulator::Node> RamForest::MergeRoot(uint64_t parent_pos, Hash parent
     return m_roots.back();
 }
 
-NodePtr<Accumulator::Node> RamForest::NewLeaf(const Leaf& leaf)
+Accumulator::NodePtr<Accumulator::Node> RamForest::NewLeaf(const Leaf& leaf)
 {
     // append new hash on row 0 (as a leaf)
     this->m_data.at(0).push_back(leaf.first);

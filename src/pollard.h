@@ -3,7 +3,6 @@
 
 #include <accumulator.h>
 #include <memory>
-#include <nodepool.h>
 
 namespace utreexo {
 

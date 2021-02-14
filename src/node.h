@@ -3,13 +3,9 @@
 
 #include <accumulator.h>
 #include <array>
+#include <nodepool.h>
 
 namespace utreexo {
-
-template <class T>
-class NodePool;
-template <class T>
-class NodePtr;
 
 using Hash = std::array<uint8_t, 32>;
 

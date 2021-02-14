@@ -1,4 +1,5 @@
 #include <node.h>
+#include <nodepool.h>
 #include <pollard.h>
 #include <state.h>
 #include <string.h>
@@ -71,7 +72,7 @@ Pollard::~Pollard()
     delete m_nodepool;
 }
 
-std::vector<NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<Accumulator::Node>& rehash_path, bool record_path) const
+std::vector<Accumulator::NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<Accumulator::Node>& rehash_path, bool record_path) const
 {
     ForestState current_state(m_num_leaves);
 
@@ -123,7 +124,7 @@ std::vector<NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<
     return family;
 }
 
-NodePtr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uint64_t to)
+Accumulator::NodePtr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uint64_t to)
 {
     NodePtr<Accumulator::Node> rehash_path, unused;
     std::vector<NodePtr<InternalNode>> family_from, family_to;
@@ -145,7 +146,7 @@ NodePtr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uint64_t to)
     return rehash_path;
 }
 
-NodePtr<Accumulator::Node> Pollard::NewLeaf(const Leaf& leaf)
+Accumulator::NodePtr<Accumulator::Node> Pollard::NewLeaf(const Leaf& leaf)
 {
     auto int_node = NodePtr<InternalNode>(m_int_nodepool);
     int_node->m_hash = leaf.first;
@@ -162,7 +163,7 @@ NodePtr<Accumulator::Node> Pollard::NewLeaf(const Leaf& leaf)
     return m_roots.back();
 }
 
-NodePtr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, Hash parent_hash)
+Accumulator::NodePtr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, Hash parent_hash)
 {
     NodePtr<InternalNode> int_right = INTERNAL_NODE(m_roots.back());
     m_roots.pop_back();

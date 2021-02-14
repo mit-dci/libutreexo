@@ -1,17 +1,13 @@
 #ifndef UTREEXO_NODEPOOL_H
 #define UTREEXO_NODEPOOL_H
 
+#include <accumulator.h>
 #include <assert.h>
 #include <check.h>
 #include <iostream>
 #include <type_traits>
 
 namespace utreexo {
-
-template <class T>
-class NodePool;
-template <class T>
-std::ostream& operator<<(std::ostream& o, const NodePool<T>& pool);
 
 /**
  * The NodePool is a allocator for accumulator nodes.
@@ -23,7 +19,7 @@ std::ostream& operator<<(std::ostream& o, const NodePool<T>& pool);
  * TODO: Restrict type T to Node types from the accumulator.
  */
 template <class T>
-class NodePool
+class Accumulator::NodePool
 {
 private:
     int m_capacity;
@@ -68,23 +64,10 @@ public:
      * is free to be taken again.
      */
     void GiveBack(T* node);
-
-    /** Print some stats to the stream. */
-    friend std::ostream& operator<<<>(std::ostream& o, const NodePool<T>& pool);
 };
 
 template <class T>
-std::ostream& operator<<(std::ostream& o, const NodePool<T>& pool)
-{
-    o << "capacity: " << pool.m_capacity << std::endl;
-    o << "num_taken: " << pool.m_num_taken << std::endl;
-    o << "total_refs_taken: " << pool.m_total_refs_taken << std::endl;
-    o << "next_free: " << pool.m_next;
-    return o;
-}
-
-template <class T>
-NodePool<T>::NodePool(int capacity)
+Accumulator::NodePool<T>::NodePool(int capacity)
 {
     m_capacity = capacity;
     m_num_taken = 0;
@@ -98,7 +81,7 @@ NodePool<T>::NodePool(int capacity)
 }
 
 template <class T>
-NodePool<T>::~NodePool()
+Accumulator::NodePool<T>::~NodePool()
 {
     m_capacity = 0;
 
@@ -111,7 +94,7 @@ NodePool<T>::~NodePool()
 }
 
 template <class T>
-int* NodePool<T>::RefCount(T* node)
+int* Accumulator::NodePool<T>::RefCount(T* node)
 {
     if (node == nullptr) return nullptr;
 
@@ -123,7 +106,7 @@ int* NodePool<T>::RefCount(T* node)
 }
 
 template <class T>
-T* NodePool<T>::Take()
+T* Accumulator::NodePool<T>::Take()
 {
     CHECK_SAFE(m_num_taken <= m_capacity);
 
@@ -152,7 +135,7 @@ T* NodePool<T>::Take()
 
 
 template <class T>
-void NodePool<T>::GiveBack(T* node)
+void Accumulator::NodePool<T>::GiveBack(T* node)
 {
     if (node == nullptr || m_capacity == 0) return;
 
@@ -179,7 +162,7 @@ void NodePool<T>::GiveBack(T* node)
  * TODO: Handle circular references.
  */
 template <class T>
-class NodePtr
+class Accumulator::NodePtr
 {
 private:
     template <class U>
@@ -246,7 +229,7 @@ public:
 };
 
 template <class T>
-NodePtr<T>::NodePtr(NodePool<T>* pool)
+Accumulator::NodePtr<T>::NodePtr(Accumulator::NodePool<T>* pool)
 {
     if (pool == nullptr) {
         m_pool = nullptr;
@@ -262,7 +245,7 @@ NodePtr<T>::NodePtr(NodePool<T>* pool)
 }
 
 template <class T>
-NodePtr<T>::~NodePtr()
+Accumulator::NodePtr<T>::~NodePtr()
 {
     if (!m_ref_count) {
         return;
@@ -277,25 +260,25 @@ NodePtr<T>::~NodePtr()
 }
 
 template <class T>
-T* NodePtr<T>::get() const
+T* Accumulator::NodePtr<T>::get() const
 {
     return m_int_ptr;
 }
 
 template <class T>
-T& NodePtr<T>::operator*()
+T& Accumulator::NodePtr<T>::operator*()
 {
     return *m_int_ptr;
 }
 
 template <class T>
-T* NodePtr<T>::operator->()
+T* Accumulator::NodePtr<T>::operator->()
 {
     return m_int_ptr;
 }
 
 template <class T>
-void NodePtr<T>::AddRef()
+void Accumulator::NodePtr<T>::AddRef()
 {
     if (m_ref_count) {
         ++(*m_ref_count);
@@ -303,7 +286,7 @@ void NodePtr<T>::AddRef()
 }
 
 template <class T>
-void NodePtr<T>::RemoveRef()
+void Accumulator::NodePtr<T>::RemoveRef()
 {
     if (m_ref_count) {
         --(*m_ref_count);
@@ -311,7 +294,7 @@ void NodePtr<T>::RemoveRef()
 }
 
 template <class T>
-void NodePtr<T>::Assign(const NodePtr other)
+void Accumulator::NodePtr<T>::Assign(const NodePtr other)
 {
     if (m_ref_count == other.m_ref_count) return;
 
@@ -325,27 +308,19 @@ void NodePtr<T>::Assign(const NodePtr other)
 
     m_int_ptr = other.m_int_ptr;
     m_ref_count = other.m_ref_count;
-    m_pool = (NodePool<T>*)other.m_pool;
+    m_pool = (Accumulator::NodePool<T>*)other.m_pool;
     AddRef();
 }
 
 template <class T>
-NodePtr<T>& NodePtr<T>::operator=(const NodePtr& other)
+Accumulator::NodePtr<T>& Accumulator::NodePtr<T>::operator=(const NodePtr& other)
 {
     Assign(other);
     return *this;
 }
 
 template <class T>
-NodePtr<T>& NodePtr<T>::operator=(const NodePtr&& other)
-{
-    Assign(other);
-    return *this;
-}
-
-template <class T>
-template <class U>
-NodePtr<T>& NodePtr<T>::operator=(const NodePtr<U>& other)
+Accumulator::NodePtr<T>& Accumulator::NodePtr<T>::operator=(const NodePtr&& other)
 {
     Assign(other);
     return *this;
@@ -353,26 +328,34 @@ NodePtr<T>& NodePtr<T>::operator=(const NodePtr<U>& other)
 
 template <class T>
 template <class U>
-NodePtr<T>& NodePtr<T>::operator=(const NodePtr<U>&& other)
+Accumulator::NodePtr<T>& Accumulator::NodePtr<T>::operator=(const NodePtr<U>& other)
 {
     Assign(other);
     return *this;
 }
 
 template <class T>
-inline bool NodePtr<T>::operator==(const T& other) const
+template <class U>
+Accumulator::NodePtr<T>& Accumulator::NodePtr<T>::operator=(const NodePtr<U>&& other)
+{
+    Assign(other);
+    return *this;
+}
+
+template <class T>
+inline bool Accumulator::NodePtr<T>::operator==(const T& other) const
 {
     return other.m_int_ptr == m_int_ptr;
 }
 
 template <class T>
-inline NodePtr<T>::operator bool() const
+inline Accumulator::NodePtr<T>::operator bool() const
 {
     return m_int_ptr != nullptr;
 }
 
 template <class T>
-int NodePtr<T>::RefCount()
+int Accumulator::NodePtr<T>::RefCount()
 {
     if (m_ref_count) {
         return *m_ref_count;
