@@ -29,19 +29,8 @@ private:
     /* Swap the hashes of ranges (from, from+range) and (to, to+range). */
     void SwapRange(uint64_t from, uint64_t to, uint64_t range);
 
-    class Node : public Accumulator::Node
-    {
-    public:
-        Hash m_hash;
-        // TODO: yikes.
-        RamForest* m_forest;
-
-        Node() {}
-
-        const Hash& GetHash() const override;
-        void ReHash() override;
-        NodePtr<Accumulator::Node> Parent() const override;
-    };
+    // RamForests implementation of Accumulator::Node.
+    class Node;
 
     // NodePool for RamForest::Nodes
     NodePool<Node>* m_nodepool;
@@ -52,12 +41,7 @@ private:
     void FinalizeRemove(uint64_t next_num_leaves) override;
 
 public:
-    RamForest(uint64_t num_leaves, int max_nodes) : Accumulator(num_leaves)
-    {
-        this->m_data = std::vector<std::vector<Hash>>();
-        this->m_data.push_back(std::vector<Hash>());
-        m_nodepool = new NodePool<Node>(max_nodes);
-    }
+    RamForest(uint64_t num_leaves, int max_nodes);
 
     bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const override;
     void Add(const std::vector<Leaf>& leaves) override;

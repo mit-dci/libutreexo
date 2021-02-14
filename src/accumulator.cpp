@@ -4,6 +4,7 @@
 #include <crypto/sha512.h>
 #include <cstring>
 #include <iostream>
+#include <node.h>
 #include <state.h>
 #include <stdio.h>
 
@@ -14,6 +15,8 @@ Accumulator::Accumulator(uint64_t num_leaves)
     m_num_leaves = num_leaves;
     m_roots.reserve(64);
 }
+
+Accumulator::~Accumulator() {}
 
 bool Accumulator::Modify(const std::vector<Leaf>& leaves, const std::vector<uint64_t>& targets)
 {

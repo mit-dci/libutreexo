@@ -1,9 +1,24 @@
 #include <batchproof.h>
 #include <iostream>
+#include <node.h>
 #include <ram_forest.h>
 #include <state.h>
 
 namespace utreexo {
+
+class RamForest::Node : public Accumulator::Node
+{
+public:
+    Hash m_hash;
+    // TODO: yikes.
+    RamForest* m_forest;
+
+    Node() {}
+
+    const Hash& GetHash() const override;
+    void ReHash() override;
+    NodePtr<Accumulator::Node> Parent() const override;
+};
 
 // RamForest::Node
 const Hash& RamForest::Node::GetHash() const
@@ -56,6 +71,13 @@ NodePtr<Accumulator::Node> RamForest::Node::Parent() const
 }
 
 // RamForest
+
+RamForest::RamForest(uint64_t num_leaves, int max_nodes) : Accumulator(num_leaves)
+{
+    this->m_data = std::vector<std::vector<Hash>>();
+    this->m_data.push_back(std::vector<Hash>());
+    m_nodepool = new NodePool<Node>(max_nodes);
+}
 
 bool RamForest::Read(Hash& hash, uint64_t pos) const
 {

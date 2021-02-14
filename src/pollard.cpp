@@ -1,5 +1,4 @@
-#include <algorithm>
-#include <iostream>
+#include <node.h>
 #include <pollard.h>
 #include <state.h>
 #include <string.h>
@@ -9,7 +8,68 @@
 
 namespace utreexo {
 
+class Pollard::InternalNode
+{
+public:
+    Hash m_hash;
+    NodePtr<InternalNode> m_nieces[2];
+
+    InternalNode() {}
+    ~InternalNode() {}
+
+    /* Chop of deadend nieces. */
+    void Prune();
+
+    /* 
+     * Return wether or not this node is a deadend.
+     * A node is a deadend if both nieces do not point to another node.
+     */
+    bool DeadEnd() const;
+
+    void NodePoolDestroy()
+    {
+        m_nieces[0] = nullptr;
+        m_nieces[1] = nullptr;
+    }
+};
+
+class Pollard::Node : public Accumulator::Node
+{
+public:
+    NodePtr<Pollard::InternalNode> m_node;
+
+    // Store the sibling for reHash.
+    // The siblings nieces are the nodes children.
+    NodePtr<Pollard::InternalNode> m_sibling;
+
+    Node() {}
+    ~Node() {}
+
+    const Hash& GetHash() const override;
+    void ReHash() override;
+
+    void NodePoolDestroy() override
+    {
+        m_node = nullptr;
+        m_sibling = nullptr;
+        Accumulator::Node::NodePoolDestroy();
+    }
+};
+
 // Pollard
+Pollard::Pollard(uint64_t num_leaves, int max_nodes) : Accumulator(num_leaves)
+{
+    // TODO: find good capacity for both pools.
+    m_int_nodepool = new NodePool<Pollard::InternalNode>(max_nodes);
+    m_nodepool = new NodePool<Pollard::Node>(max_nodes);
+}
+
+Pollard::~Pollard()
+{
+    m_roots.clear();
+    delete m_int_nodepool;
+    delete m_nodepool;
+}
 
 std::vector<NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<Accumulator::Node>& rehash_path, bool record_path) const
 {

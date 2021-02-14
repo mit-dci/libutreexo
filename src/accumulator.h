@@ -1,5 +1,4 @@
 #ifndef UTREEXO_ACCUMULATOR_H
-
 #define UTREEXO_ACCUMULATOR_H
 
 #include <array>
@@ -18,7 +17,7 @@ class Accumulator
 {
 public:
     Accumulator(uint64_t num_leaves);
-    virtual ~Accumulator() {}
+    virtual ~Accumulator();
 
     /** 
      * Try to prove the provided targets. 
@@ -48,38 +47,7 @@ protected:
      * because it might not use a pointer based tree datastructure but the verification and modification
      * algorithms are quite nicely expressed using one.
      */
-    class Node
-    {
-    public:
-        // The number of leaves at the time this node was created.
-        uint64_t m_num_leaves;
-
-        // A pointer to the parent node.
-        // This is useful if you want to rehash a path from the bottom up.
-        NodePtr<Accumulator::Node> m_parent;
-
-        // The position of the node in the forest.
-        uint64_t m_position;
-
-        virtual ~Node() {}
-
-        /*
-         * Return the hash of the node.
-         * This does not compute the hash only returns a previously computed hash.
-         */
-        virtual const Hash& GetHash() const = 0;
-
-        /* Recompute the hash from children nodes and return it. */
-        virtual void ReHash() = 0;
-
-        /*
-         * Return the parent of the node.
-         * A return value of nullptr does *not* always indicate that a tree top was reached. 
-         */
-        virtual NodePtr<Accumulator::Node> Parent() const { return m_parent; }
-
-        virtual void NodePoolDestroy() { m_parent = nullptr; }
-    };
+    class Node;
 
     // The number of leaves in the forest.
     uint64_t m_num_leaves;
