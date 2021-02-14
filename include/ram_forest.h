@@ -1,7 +1,7 @@
 #ifndef UTREEXO_RAMFOREST_H
 #define UTREEXO_RAMFOREST_H
 
-#include <accumulator.h>
+#include "accumulator.h"
 #include <unordered_map>
 
 namespace utreexo {

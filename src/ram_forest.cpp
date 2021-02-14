@@ -1,9 +1,9 @@
-#include <batchproof.h>
-#include <crypto/common.h>
+#include "../include/ram_forest.h"
+#include "../include/batchproof.h"
+#include "crypto/common.h"
+#include "node.h"
+#include "state.h"
 #include <iostream>
-#include <node.h>
-#include <ram_forest.h>
-#include <state.h>
 
 namespace utreexo {
 

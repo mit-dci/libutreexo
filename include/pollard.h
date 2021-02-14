@@ -1,8 +1,7 @@
 #ifndef UTREEXO_POLLARD_H
 #define UTREEXO_POLLARD_H
 
-#include <accumulator.h>
-#include <memory>
+#include "accumulator.h"
 
 namespace utreexo {
 

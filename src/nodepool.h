@@ -1,9 +1,9 @@
 #ifndef UTREEXO_NODEPOOL_H
 #define UTREEXO_NODEPOOL_H
 
-#include <accumulator.h>
-#include <assert.h>
-#include <check.h>
+#include "../include/accumulator.h"
+#include "check.h"
+#include <cassert>
 #include <iostream>
 #include <type_traits>
 

@@ -1,12 +1,12 @@
+#include "../include/accumulator.h"
+#include "check.h"
 #include "crypto/common.h"
-#include <accumulator.h>
-#include <check.h>
-#include <crypto/sha512.h>
+#include "crypto/sha512.h"
+#include "node.h"
+#include "nodepool.h"
+#include "state.h"
 #include <cstring>
 #include <iostream>
-#include <node.h>
-#include <nodepool.h>
-#include <state.h>
 #include <stdio.h>
 
 namespace utreexo {

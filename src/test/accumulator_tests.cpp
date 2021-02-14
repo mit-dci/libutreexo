@@ -1,11 +1,9 @@
-#include <accumulator.h>
-#include <batchproof.h>
+#include "../../include/utreexo.h"
+#include "../nodepool.h"
 #include <boost/test/unit_test.hpp>
 #include <chrono>
 #include <cstring>
-#include <nodepool.h>
-#include <pollard.h>
-#include <ram_forest.h>
+
 BOOST_AUTO_TEST_SUITE(accumulator_tests)
 
 using namespace utreexo;

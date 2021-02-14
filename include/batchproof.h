@@ -1,6 +1,7 @@
 #ifndef UTREEXO_BATCHPROOF_H
 #define UTREEXO_BATCHPROOF_H
 
+#include <array>
 #include <stdint.h>
 #include <vector>
 

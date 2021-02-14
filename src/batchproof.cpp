@@ -1,8 +1,10 @@
-#include <accumulator.h>
-#include <batchproof.h>
-#include <crypto/common.h>
+#include "../include/batchproof.h"
+#include "../include/accumulator.h"
+#include "crypto/common.h"
+#include "state.h"
+#include <cassert>
+#include <cstring>
 #include <iostream>
-#include <state.h>
 
 namespace utreexo {
 
@@ -27,12 +29,12 @@ void BatchProof::Serialize(std::vector<uint8_t>& bytes) const
     // Number of proof hashes:  4 bytes
     // Targets:                 4 bytes each
     // Proof hashes:           32 bytes each
-    bytes.resize(4 + 4 + targets.size() * 4 + proof.size() * 32);
+    bytes.resize(4 + 4 + targets.size() * 4 + this->proof.size() * 32);
 
     int data_offset = 0;
     WriteBE32(bytes.data(), uint32_t(targets.size()));
     data_offset += 4;
-    WriteBE32(bytes.data() + data_offset, uint32_t(proof.size()));
+    WriteBE32(bytes.data() + data_offset, uint32_t(this->proof.size()));
     data_offset += 4;
 
     for (const uint64_t target : targets) {
@@ -40,7 +42,7 @@ void BatchProof::Serialize(std::vector<uint8_t>& bytes) const
         data_offset += 4;
     }
 
-    for (const Hash& hash : proof) {
+    for (const Hash& hash : this->proof) {
         std::memcpy(bytes.data() + data_offset, hash.data(), 32);
         data_offset += 32;
     }
@@ -64,9 +66,9 @@ bool BatchProof::Unserialize(const std::vector<uint8_t>& bytes)
     }
 
     targets.clear();
-    proof.clear();
+    this->proof.clear();
     targets.reserve(num_targets);
-    proof.reserve(num_hashes);
+    this->proof.reserve(num_hashes);
 
     for (uint32_t i = 0; i < num_targets; ++i) {
         targets.push_back(uint64_t(ReadBE32(bytes.data() + data_offset)));
@@ -77,7 +79,7 @@ bool BatchProof::Unserialize(const std::vector<uint8_t>& bytes)
         Hash hash;
         std::memcpy(hash.data(), bytes.data() + data_offset, 32);
         data_offset += 32;
-        proof.push_back(hash);
+        this->proof.push_back(hash);
     }
 
     assert(data_offset == bytes.size());
@@ -87,8 +89,8 @@ bool BatchProof::Unserialize(const std::vector<uint8_t>& bytes)
 
 bool BatchProof::operator==(const BatchProof& other)
 {
-    return targets.size() == other.targets.size() && proof.size() == other.proof.size() &&
-           targets == other.targets && proof == other.proof;
+    return targets.size() == other.targets.size() && this->proof.size() == other.proof.size() &&
+           targets == other.targets && this->proof == other.proof;
 }
 
 void BatchProof::Print()

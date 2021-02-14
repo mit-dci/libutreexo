@@ -1,5 +1,5 @@
+#include "../state.h"
 #include <boost/test/unit_test.hpp>
-#include <state.h>
 
 using namespace utreexo;
 

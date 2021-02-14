@@ -1,9 +1,9 @@
 #ifndef UTREEXO_NODE_H
 #define UTREEXO_NODE_H
 
-#include <accumulator.h>
+#include "../include/accumulator.h"
+#include "nodepool.h"
 #include <array>
-#include <nodepool.h>
 
 namespace utreexo {
 

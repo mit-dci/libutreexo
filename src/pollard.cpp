@@ -1,8 +1,9 @@
-#include <node.h>
-#include <nodepool.h>
-#include <pollard.h>
-#include <state.h>
+#include "../include/pollard.h"
+#include "node.h"
+#include "nodepool.h"
+#include "state.h"
 #include <string.h>
+#include <tuple>
 
 // Get the internal node from a NodePtr<Accumulator::Node>.
 #define INTERNAL_NODE(acc_node) (((Pollard::Node*)acc_node.get())->m_node)
