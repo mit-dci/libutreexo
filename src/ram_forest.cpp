@@ -1,10 +1,13 @@
 #include <batchproof.h>
+#include <crypto/common.h>
 #include <iostream>
 #include <node.h>
 #include <ram_forest.h>
 #include <state.h>
 
 namespace utreexo {
+
+size_t RamForest::LeafHasher::operator()(const Hash& hash) const { return ReadLE64(hash.data()); }
 
 class RamForest::Node : public Accumulator::Node
 {
