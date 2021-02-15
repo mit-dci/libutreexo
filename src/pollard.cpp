@@ -64,11 +64,14 @@ Pollard::Pollard(uint64_t num_leaves, int max_nodes) : Accumulator(num_leaves)
     // TODO: find good capacity for both pools.
     m_int_nodepool = new NodePool<Pollard::InternalNode>(max_nodes);
     m_nodepool = new NodePool<Pollard::Node>(max_nodes);
+    m_remember = new NodePtr<Pollard::InternalNode>(m_int_nodepool);
 }
 
 Pollard::~Pollard()
 {
+    //std::cout << "Cached nodes: " << m_remember->RefCount() << std::endl;
     m_roots.clear();
+    delete m_remember;
     delete m_int_nodepool;
     delete m_nodepool;
 }
@@ -152,7 +155,7 @@ Accumulator::NodePtr<Accumulator::Node> Pollard::NewLeaf(const Leaf& leaf)
     auto int_node = NodePtr<InternalNode>(m_int_nodepool);
     int_node->m_hash = leaf.first;
     // TODO: dont remember everything
-    int_node->m_nieces[0] = int_node;
+    int_node->m_nieces[0] = *m_remember;
     int_node->m_nieces[1] = nullptr;
 
     auto node = NodePtr<Pollard::Node>(m_nodepool);

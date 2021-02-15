@@ -15,6 +15,8 @@ private:
     NodePool<InternalNode>* m_int_nodepool;
     NodePool<Pollard::Node>* m_nodepool;
 
+    NodePtr<Pollard::InternalNode>* m_remember;
+
     /*
      * Return the node and its sibling.
      * Point path to the parent of the node. The path to the node can be traversed in reverse order using the
