@@ -64,6 +64,9 @@ public:
      * is free to be taken again.
      */
     void GiveBack(T* node);
+
+    int Capacity() const { return m_capacity; }
+    int Size() const { return m_num_taken; }
 };
 
 template <class T>
@@ -83,6 +86,7 @@ Accumulator::NodePool<T>::NodePool(int capacity)
 template <class T>
 Accumulator::NodePool<T>::~NodePool()
 {
+    CHECK_SAFE(m_num_taken == 0);
     m_capacity = 0;
 
     // Free allocated memory.
@@ -111,7 +115,6 @@ T* Accumulator::NodePool<T>::Take()
     CHECK_SAFE(m_num_taken <= m_capacity);
 
     if (m_num_taken == m_capacity) {
-        CHECK_SAFE(false);
         return NULL;
     }
 

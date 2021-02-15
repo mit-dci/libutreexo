@@ -28,3 +28,4 @@ UTREEXO_TEST_SOURCES_INT =
 UTREEXO_TEST_SOURCES_INT += %reldir%/src/test/tests.cpp 
 UTREEXO_TEST_SOURCES_INT += %reldir%/src/test/accumulator_tests.cpp
 UTREEXO_TEST_SOURCES_INT += %reldir%/src/test/state_tests.cpp
+UTREEXO_TEST_SOURCES_INT += %reldir%/src/test/nodepool_tests.cpp
