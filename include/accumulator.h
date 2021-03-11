@@ -2,6 +2,7 @@
 #define UTREEXO_ACCUMULATOR_H
 
 #include <array>
+#include <stdint.h>
 #include <utility>
 #include <vector>
 
