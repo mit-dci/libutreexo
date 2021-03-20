@@ -88,6 +88,8 @@ public:
     std::vector<uint64_t> RootPositions() const;
     std::vector<uint64_t> RootPositions(uint64_t num_leaves) const;
 
+    uint8_t RootIndex(uint64_t pos) const;
+
     // Functions for rows:
 
     // Return the number of rows.
@@ -108,6 +110,8 @@ public:
 
     // Return the maximum number of nodes in the forest.
     uint64_t MaxNodes() const;
+
+    bool CheckTargetsSanity(const std::vector<uint64_t>& targets) const;
 
 private:
     /*

@@ -160,7 +160,7 @@ ForestState::ProofPositions(const std::vector<uint64_t>& targets) const
     std::vector<uint64_t> savior;
     std::vector<uint64_t> nextTargets;
 
-    for (uint8_t row = 0; row < rows; ++row) {
+    for (uint8_t row = 0; row <= rows; ++row) {
         computed.insert(computed.end(), start, end);
 
         if (this->HasRoot(row) && start < end &&
@@ -262,9 +262,9 @@ bool ForestState::HasRoot(uint8_t row) const
 
 uint64_t _rootPosition(uint8_t row, uint64_t num_leaves, uint8_t rows)
 {
-    uint64_t mask = _maxNodes(num_leaves);
+    uint64_t mask = (2 << rows) - 1;
     uint64_t before = num_leaves & (mask << (row + 1));
-    uint64_t shifted = (before >> row) | (mask << (rows - (row - 1)));
+    uint64_t shifted = (before >> row) | (mask << (rows + 1 - row));
     return shifted & mask;
 }
 
@@ -294,6 +294,16 @@ std::vector<uint64_t> ForestState::RootPositions(uint64_t num_leaves) const
     }
     return roots;
 }
+
+uint8_t ForestState::RootIndex(uint64_t pos) const
+{
+    // TODO: think of bit shifty way to do this.
+    uint8_t root_index, tmp;
+    uint64_t tmp1;
+    std::tie(root_index, tmp, tmp1) = Path(pos);
+    return root_index;
+}
+
 
 // rows
 
@@ -384,6 +394,10 @@ ForestState::Transform(const std::vector<uint64_t>& targets) const
         //extract_pair.first are the parents of the siblings, extract_pair.second is the input with out siblings.
         std::pair<std::vector<uint64_t>, std::vector<uint64_t>> extract_pair =
             ComputeNextRowTargets(current_row_targets, deletion_remains, root_present);
+
+        // TODO: avoid sorting (the go version does this differently)
+        std::sort(extract_pair.first.begin(), extract_pair.first.end());
+
         swaps.push_back(this->MakeSwaps(extract_pair.second, deletion_remains, root_present, root_pos));
         collapses.push_back(this->MakeCollapse(extract_pair.second, deletion_remains, root_present, row, next_num_leaves));
 
@@ -400,6 +414,46 @@ ForestState::Transform(const std::vector<uint64_t>& targets) const
 
 uint64_t _maxNodes(uint64_t num_leaves) { return (2 << _numRows(num_leaves)) - 1; }
 uint64_t ForestState::MaxNodes() const { return _maxNodes(this->m_num_leaves); }
+
+
+// Check that the targets are sorted in ascending order and dont have any duplicates.
+bool IsSortedNoDupes(const std::vector<uint64_t>& targets)
+{
+    for (uint64_t i = 0; i < targets.size() - 1; ++i) {
+        if (targets[i] >= targets[i + 1]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool ForestState::CheckTargetsSanity(const std::vector<uint64_t>& targets) const
+{
+    if (targets.size() == 0) {
+        // An empty target list is OK.
+        return true;
+    }
+
+    if (m_num_leaves < targets.size()) {
+        // It is not possible to delete more targets than leaves in the forest.
+        return false;
+    }
+
+    if (!IsSortedNoDupes(targets)) {
+        // Targets have to be sorted in ascending order and cant have any duplicates.
+        return false;
+    }
+
+    if (targets.back() >= m_num_leaves) {
+        // All targets must be leaves.
+        // Checking that the last target is a leaf is enough since
+        // the targets are sorted in ascending order.
+        return false;
+    }
+
+    return true;
+}
 
 // private
 
@@ -481,6 +535,7 @@ ForestState::Swap ForestState::MakeCollapse(const std::vector<uint64_t>& targets
     if (deletion_remains && !root_present) {
         // There is no root but there is a remaining deletion.
         // => The sibling of the remaining deletion becomes a root.
+        assert(targets.size() > 0);
         return ForestState::Swap(this->Sibling(targets.back()), root_dest, true);
     }
 
@@ -531,6 +586,7 @@ void ForestState::SwapInRow(ForestState::Swap swap,
         if (!collapses.at(collapse_row).m_collapse) {
             continue;
         }
+
         this->SwapIfDescendant(swap, collapses.at(collapse_row), swap_row, collapse_row);
     }
 }
