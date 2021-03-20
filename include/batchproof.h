@@ -11,21 +11,34 @@ namespace utreexo {
 class BatchProof
 {
 private:
-    // The positions of the leaves that are being proven.
-    std::vector<uint64_t> targets;
+    // The unsorted/sorted lists of leaf positions that are being proven.
+    std::vector<uint64_t> m_targets, m_sorted_targets;
 
     // The proof hashes for the targets.
-    std::vector<std::array<uint8_t, 32>> proof;
+    std::vector<std::array<uint8_t, 32>> m_proof;
 
 public:
-    BatchProof(std::vector<uint64_t> targets, std::vector<std::array<uint8_t, 32>> proof)
-        : targets(targets), proof(proof) {}
+    BatchProof(const std::vector<uint64_t>& targets, std::vector<std::array<uint8_t, 32>> proof)
+        : m_targets(targets), m_sorted_targets(targets), m_proof(proof)
+    {
+        std::sort(m_sorted_targets.begin(), m_sorted_targets.end());
+    }
+
     BatchProof() {}
 
     const std::vector<uint64_t>& GetTargets() const;
+    const std::vector<uint64_t>& GetSortedTargets() const;
+    const std::vector<std::array<uint8_t, 32>>& GetHashes() const;
 
     void Serialize(std::vector<uint8_t>& bytes) const;
     bool Unserialize(const std::vector<uint8_t>& bytes);
+
+    /**
+     * Perform some simple sanity checks on a proof.
+	 * - Check that the targets are sorted in ascending order with no duplicates.
+	 * - Check that the number of proof hashes is not larger than the number expected hashes.
+     */
+    bool CheckSanity(uint64_t num_leaves) const;
 
     bool operator==(const BatchProof& other);
 

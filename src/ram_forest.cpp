@@ -3,6 +3,7 @@
 #include "crypto/common.h"
 #include "node.h"
 #include "state.h"
+#include <algorithm>
 #include <iostream>
 
 namespace utreexo {
@@ -244,16 +245,35 @@ bool RamForest::Prove(BatchProof& proof, const std::vector<Hash>& targetHashes) 
         targets.push_back(posmap_it->second);
     }
 
-    // TODO: do sanity checks on the target positions.
+    // We need the sorted targets to compute the proof positions.
+    std::vector<uint64_t> sorted_targets(targets);
+    std::sort(sorted_targets.begin(), sorted_targets.end());
 
-    auto proof_positions = ForestState(m_num_leaves).ProofPositions(targets);
+    assert(ForestState(m_num_leaves).CheckTargetsSanity(sorted_targets));
+
+    // Read proof hashes from the forest using the proof positions
+    auto proof_positions = ForestState(m_num_leaves).ProofPositions(sorted_targets);
     std::vector<Hash> proof_hashes(proof_positions.first.size());
     for (int i = 0; i < proof_hashes.size(); i++) {
         bool ok = Read(proof_hashes[i], proof_positions.first[i]);
         assert(ok);
     }
 
+    // Create the batch proof from the *unsorted* targets and the proof hashes.
     proof = BatchProof(targets, proof_hashes);
+    return true;
+}
+
+bool RamForest::Verify(const BatchProof& proof, const std::vector<Hash>& target_hashes)
+{
+    // TODO: verify the actual proof. a bitcoin bridge node would like to validate proofs to ensure
+    // that he does not give invalid proofs to anyone.
+    // For now just check that the target hashes exist.
+    for (const Hash& hash : target_hashes) {
+        auto it = m_posmap.find(hash);
+        if (it == m_posmap.end()) return false;
+    }
+
     return true;
 }
 

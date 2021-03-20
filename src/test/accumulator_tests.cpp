@@ -33,14 +33,11 @@ void CreateTestLeaves(std::vector<Leaf>& leaves, int count)
 BOOST_AUTO_TEST_CASE(simple_add)
 {
     Accumulator* full = (Accumulator*)new Pollard(0, 160);
-    auto start = std::chrono::high_resolution_clock::now();
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 64);
 
-    full->Modify(leaves, std::vector<uint64_t>());
-    auto finish = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = finish - start;
+    BOOST_CHECK(full->Modify(leaves, {}));
 
     delete full;
 }
@@ -66,13 +63,15 @@ BOOST_AUTO_TEST_CASE(simple_pruned)
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 32);
-
+    // Remember all leaves
+    for (Leaf& leaf : leaves)
+        leaf.second = true;
     // Add test leaves, dont delete any.
     full->Modify(leaves, std::vector<uint64_t>());
     // Delete some leaves, dont add any new ones.
     leaves.clear();
     full->Modify(leaves, {0, 2, 3, 9});
-    full->PrintRoots();
+    //full->PrintRoots();
 
     delete full;
 }
@@ -95,5 +94,145 @@ BOOST_AUTO_TEST_CASE(batchproof_serialization)
     BOOST_CHECK(proof2.Unserialize(proof_bytes));
     BOOST_CHECK(proof1 == proof2);
 }
+
+BOOST_AUTO_TEST_CASE(singular_leaf_prove)
+{
+    Pollard pruned(0, 64);
+    RamForest full(0, 64);
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 8);
+
+    // Add test leaves, dont delete any.
+    full.Modify(leaves, {});
+    pruned.Modify(leaves, {});
+    //full.PrintRoots();
+
+    for (Leaf& leaf : leaves) {
+        BatchProof proof;
+        full.Prove(proof, {leaf.first});
+        BOOST_CHECK(pruned.Verify(proof, {leaf.first}));
+
+        // Delete all cached leaves.
+        pruned.Prune();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(simple_modified_proof)
+{
+    Pollard pruned(0, 64);
+    RamForest full(0, 64);
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 8);
+
+    // Add test leaves, dont delete any.
+    full.Modify(leaves, {});
+    pruned.Modify(leaves, {});
+    // full.PrintRoots();
+
+    BatchProof proof;
+    full.Prove(proof, {leaves[0].first});
+    std::vector<Hash> modified_hashes = proof.GetHashes();
+    // Fill the last hash with zeros.
+    // This should cause verification to fail.
+    modified_hashes.back().fill(0);
+    BatchProof invalid(proof.GetSortedTargets(), modified_hashes);
+    // Assert that verification fails.
+    BOOST_CHECK(pruned.Verify(invalid, {leaves[0].first}) == false);
+}
+
+BOOST_AUTO_TEST_CASE(simple_cached_proof)
+{
+    Pollard pruned(0, 64);
+    RamForest full(0, 64);
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 8);
+
+    // Remember leaf 0 in the pollard.
+    leaves[0].second = true;
+    // Add test leaves, dont delete any.
+    full.Modify(leaves, {});
+    pruned.Modify(leaves, {});
+    //full.PrintRoots();
+
+    BatchProof proof;
+    full.Prove(proof, {leaves[0].first});
+
+    // Since the proof for leaf 0 is cached,
+    // the proof can be any subset of the full proof.
+    BOOST_CHECK(pruned.Verify(BatchProof(proof.GetSortedTargets(), {proof.GetHashes()[0]}), {leaves[0].first}));
+    BOOST_CHECK(pruned.Verify(BatchProof(proof.GetSortedTargets(), {proof.GetHashes()[1]}), {leaves[0].first}));
+    BOOST_CHECK(pruned.Verify(BatchProof(proof.GetSortedTargets(), {proof.GetHashes()[2]}), {leaves[0].first}));
+
+    BOOST_CHECK(pruned.Verify(BatchProof(proof.GetSortedTargets(), {proof.GetHashes()[0], proof.GetHashes()[1]}), {leaves[0].first}));
+    BOOST_CHECK(pruned.Verify(BatchProof(proof.GetSortedTargets(), {proof.GetHashes()[0], proof.GetHashes()[2]}), {leaves[0].first}));
+    BOOST_CHECK(pruned.Verify(BatchProof(proof.GetSortedTargets(), {proof.GetHashes()[1], proof.GetHashes()[2]}), {leaves[0].first}));
+    BOOST_CHECK(pruned.Verify(proof, {leaves[0].first}));
+    // Empty proof should work since the pollard now holds the computed nodes as well.
+    BOOST_CHECK(pruned.Verify(BatchProof(proof.GetSortedTargets(), {}), {leaves[0].first}));
+}
+
+BOOST_AUTO_TEST_CASE(simple_batch_proof)
+{
+    Pollard pruned(0, 64);
+    RamForest full(0, 64);
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 15);
+
+    // Add test leaves, dont delete any.
+    full.Modify(leaves, {});
+    pruned.Modify(leaves, {});
+    //full.PrintRoots();
+
+    BatchProof proof;
+    full.Prove(proof, {leaves[0].first, leaves[7].first, leaves[8].first, leaves[14].first});
+
+    BOOST_CHECK(pruned.Verify(proof, {leaves[0].first, leaves[7].first, leaves[8].first, leaves[14].first}));
+}
+
+BOOST_AUTO_TEST_CASE(simple_batchproof_verify_and_delete)
+{
+    RamForest full(0, 128);
+    Pollard pruned(0, 128);
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 15);
+
+    full.Modify(leaves, {});
+    pruned.Modify(leaves, {});
+
+    // Check that the roots of the full forest match the pollard roots.
+    std::vector<Hash> prev_full_roots, prev_pruned_roots;
+    full.Roots(prev_full_roots);
+    pruned.Roots(prev_pruned_roots);
+    BOOST_CHECK(prev_full_roots == prev_pruned_roots);
+
+    // Prove and verify some leaves.
+    // This should populate the pollard with the required proof for deletion.
+    BatchProof proof;
+    BOOST_CHECK(full.Prove(proof, {leaves[0].first, leaves[7].first, leaves[8].first, leaves[14].first}));
+    BOOST_CHECK(pruned.Verify(proof, {leaves[0].first, leaves[7].first, leaves[8].first, leaves[14].first}));
+
+    // Delete the targets.
+    BOOST_CHECK(full.Modify({}, proof.GetSortedTargets()));
+    BOOST_CHECK(pruned.Modify({}, proof.GetSortedTargets()));
+
+    // Check that the roots of the full forest match the pollard roots.
+    std::vector<Hash> full_roots, pruned_roots;
+    full.Roots(full_roots);
+    pruned.Roots(pruned_roots);
+    BOOST_CHECK(full_roots == pruned_roots);
+
+    // The new roots should be different than the previous ones.
+    BOOST_CHECK(pruned_roots != prev_pruned_roots);
+}
+
+// TODO: Add verification tests
+// Modified proofs should not pass.
+// Partial proofs that are missing non cached hashes should not pass.
+// Parital proofs that are only missing cached hashes should pass.
 
 BOOST_AUTO_TEST_SUITE_END()

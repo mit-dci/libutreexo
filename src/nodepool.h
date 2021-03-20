@@ -191,12 +191,12 @@ public:
     // Copy and Move constructors are important for reference counting.
 
     template <class U>
-    NodePtr(const NodePtr<U>& node) : NodePtr<T>((NodePool<T>*)node.m_pool, node.m_int_ptr, node.m_ref_count)
+    NodePtr(const NodePtr<U>& node) : NodePtr<T>((NodePool<T>*)node.m_pool, (T*)node.m_int_ptr, node.m_ref_count)
     {
     }
     NodePtr(const NodePtr& node) : NodePtr<T>(node.m_pool, node.m_int_ptr, node.m_ref_count) {}
     template <class U>
-    NodePtr(const NodePtr<U>&& node) : NodePtr<T>((NodePool<T>*)node.m_pool, node.m_int_ptr, node.m_ref_count)
+    NodePtr(const NodePtr<U>&& node) : NodePtr<T>((NodePool<T>*)node.m_pool, (T*)node.m_int_ptr, node.m_ref_count)
     {
     }
     NodePtr(const NodePtr&& node) : NodePtr<T>(node.m_pool, node.m_int_ptr, node.m_ref_count) {}
@@ -207,7 +207,7 @@ public:
     T* get() const;
 
     /** Override the -> operator to make NodePtr immitate real pointers. */
-    T* operator->();
+    T* operator->() const;
 
     /** Override the * operator to make NodePtr immitate real pointers. */
     T& operator*();
@@ -275,7 +275,7 @@ T& Accumulator::NodePtr<T>::operator*()
 }
 
 template <class T>
-T* Accumulator::NodePtr<T>::operator->()
+T* Accumulator::NodePtr<T>::operator->() const
 {
     return m_int_ptr;
 }

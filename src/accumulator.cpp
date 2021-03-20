@@ -38,6 +38,21 @@ void Accumulator::Roots(std::vector<Hash>& roots) const
     }
 }
 
+// https://github.com/bitcoin/bitcoin/blob/7f653c3b22f0a5267822eec017aea6a16752c597/src/util/strencodings.cpp#L580
+template <class T>
+std::string HexStr(const T s)
+{
+    std::string rv;
+    static constexpr char hexmap[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                                        '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+    rv.reserve(s.size() * 2);
+    for (uint8_t v : s) {
+        rv.push_back(hexmap[v >> 4]);
+        rv.push_back(hexmap[v & 15]);
+    }
+    return rv;
+}
+
 void Accumulator::ParentHash(Hash& parent, const Hash& left, const Hash& right)
 {
     //CHECK_SAFE(!left.IsNull());
@@ -53,21 +68,8 @@ void Accumulator::ParentHash(Hash& parent, const Hash& left, const Hash& right)
 
     // finalize the hash and write it into parentHash
     hasher.Finalize256(parent.data());
-}
 
-// https://github.com/bitcoin/bitcoin/blob/7f653c3b22f0a5267822eec017aea6a16752c597/src/util/strencodings.cpp#L580
-template <class T>
-std::string HexStr(const T s)
-{
-    std::string rv;
-    static constexpr char hexmap[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
-                                        '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-    rv.reserve(s.size() * 2);
-    for (uint8_t v : s) {
-        rv.push_back(hexmap[v >> 4]);
-        rv.push_back(hexmap[v & 15]);
-    }
-    return rv;
+    // std::cout << "hash: " << HexStr(left).substr(0, 8) << " + " << HexStr(right).substr(0, 8) << " = " << HexStr(parent).substr(0, 8) << std::endl;
 }
 
 void Accumulator::PrintRoots() const
@@ -114,39 +116,18 @@ void Accumulator::Add(const std::vector<Leaf>& leaves)
     }
 }
 
-bool IsSortedNoDupes(const std::vector<uint64_t>& targets)
-{
-    for (uint64_t i = 0; i < targets.size() - 1; ++i) {
-        if (targets[i] >= targets[i + 1]) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 bool Accumulator::Remove(const std::vector<uint64_t>& targets)
 {
     if (targets.size() == 0) {
         return true;
     }
 
-    if (m_num_leaves < targets.size()) {
-        // error deleting more targets than elemnts in the accumulator.
-        return false;
-    }
-
-    if (!IsSortedNoDupes(targets)) {
-        // error, targets are not sorted or contain duplicates.
-        return false;
-    }
-
-    if (targets.back() >= m_num_leaves) {
-        // error targets not in the accumulator.
-        return false;
-    }
-
     ForestState current_state(m_num_leaves);
+
+    // Perform sanity checks on targets. (e.g.: sorted no duplicates)
+    if (!current_state.CheckTargetsSanity(targets)) {
+        return false;
+    }
 
     std::vector<std::vector<ForestState::Swap>> swaps = current_state.Transform(targets);
     // Store the nodes that have to be rehashed because their children changed.
@@ -160,7 +141,7 @@ bool Accumulator::Remove(const std::vector<uint64_t>& targets)
             // Execute all the swaps in this row.
             for (const ForestState::Swap swap : swaps.at(row)) {
                 NodePtr<Accumulator::Node> swap_dirt = SwapSubTrees(swap.m_from, swap.m_to);
-                dirty_nodes.push_back(swap_dirt);
+                if (!swap.m_collapse) dirty_nodes.push_back(swap_dirt);
             }
         }
 

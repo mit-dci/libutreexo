@@ -19,17 +19,24 @@ public:
     virtual ~Accumulator();
 
     /** 
-     * Try to prove the provided targets. 
-     * Return true on success and false on failure.
+     * Create a batch proof for a set of target hashes. (A target hash is the hash a leaf in the forest)
+     * The target hashes are not required to be sorted by leaf position in the forest and
+     * the targets of the batch proof will have the same order as the hashes.
+     *
+     * Example:
+     *   target_hashes = [hash of leaf 50, hash of leaf 10, hash of leaf 20]
+     *   proof.targets = [50, 10, 20]
+     *
+     * Return true on success and false on failure. (Proving can fail if a target hash does not exist in the forest)
      */
     virtual bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const = 0;
 
     /**
-     * TODO: Verify a proof.
+     * Verify a batch proof.
+     * Return whether or not the proof proved the target hashes.
      * The internal state of the accumulator might be mutated but the roots will not.
-     * Return whether or not the proof proved the targetHashes.
      */
-    /*bool Verify(const BatchProof& proof, const std::vector<Hash>& targetHashes);*/
+    virtual bool Verify(const BatchProof& proof, const std::vector<Hash>& target_hashes) = 0;
 
     /** Modify the accumulator by adding leaves and removing targets. */
     bool Modify(const std::vector<Leaf>& new_leaves, const std::vector<uint64_t>& targets);
@@ -82,7 +89,7 @@ protected:
     /* Remove target leaves from the accumulator. */
     bool Remove(const std::vector<uint64_t>& targets);
 
-    /* Compute the parent hash from to children. */
+    /* Compute the parent hash from two children. */
     static void ParentHash(Hash& parent, const Hash& left, const Hash& right);
 };
 

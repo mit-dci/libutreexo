@@ -29,20 +29,20 @@ void BatchProof::Serialize(std::vector<uint8_t>& bytes) const
     // Number of proof hashes:  4 bytes
     // Targets:                 4 bytes each
     // Proof hashes:           32 bytes each
-    bytes.resize(4 + 4 + targets.size() * 4 + this->proof.size() * 32);
+    bytes.resize(4 + 4 + m_targets.size() * 4 + m_proof.size() * 32);
 
     int data_offset = 0;
-    WriteBE32(bytes.data(), uint32_t(targets.size()));
+    WriteBE32(bytes.data(), uint32_t(m_targets.size()));
     data_offset += 4;
-    WriteBE32(bytes.data() + data_offset, uint32_t(this->proof.size()));
+    WriteBE32(bytes.data() + data_offset, uint32_t(m_proof.size()));
     data_offset += 4;
 
-    for (const uint64_t target : targets) {
+    for (const uint64_t target : m_targets) {
         WriteBE32(bytes.data() + data_offset, uint32_t(target));
         data_offset += 4;
     }
 
-    for (const Hash& hash : this->proof) {
+    for (const Hash& hash : m_proof) {
         std::memcpy(bytes.data() + data_offset, hash.data(), 32);
         data_offset += 32;
     }
@@ -65,13 +65,15 @@ bool BatchProof::Unserialize(const std::vector<uint8_t>& bytes)
         return false;
     }
 
-    targets.clear();
-    this->proof.clear();
-    targets.reserve(num_targets);
-    this->proof.reserve(num_hashes);
+    m_targets.clear();
+    m_proof.clear();
+    m_targets.reserve(num_targets);
+    m_sorted_targets.reserve(num_targets);
+    m_proof.reserve(num_hashes);
 
     for (uint32_t i = 0; i < num_targets; ++i) {
-        targets.push_back(uint64_t(ReadBE32(bytes.data() + data_offset)));
+        m_targets.push_back(uint64_t(ReadBE32(bytes.data() + data_offset)));
+        m_sorted_targets.push_back(uint64_t(ReadBE32(bytes.data() + data_offset)));
         data_offset += 4;
     }
 
@@ -79,7 +81,7 @@ bool BatchProof::Unserialize(const std::vector<uint8_t>& bytes)
         Hash hash;
         std::memcpy(hash.data(), bytes.data() + data_offset, 32);
         data_offset += 32;
-        this->proof.push_back(hash);
+        m_proof.push_back(hash);
     }
 
     assert(data_offset == bytes.size());
@@ -87,25 +89,42 @@ bool BatchProof::Unserialize(const std::vector<uint8_t>& bytes)
     return true;
 }
 
+bool BatchProof::CheckSanity(uint64_t num_leaves) const
+{
+    ForestState state(num_leaves);
+
+    if (!state.CheckTargetsSanity(m_sorted_targets)) {
+        return false;
+    }
+
+    std::vector<uint64_t> proof_positions, tmp;
+    std::tie(proof_positions, tmp) = state.ProofPositions(m_sorted_targets);
+    return proof_positions.size() >= m_proof.size();
+}
+
 bool BatchProof::operator==(const BatchProof& other)
 {
-    return targets.size() == other.targets.size() && this->proof.size() == other.proof.size() &&
-           targets == other.targets && this->proof == other.proof;
+    return m_targets.size() == other.m_targets.size() && m_proof.size() == other.m_proof.size() &&
+           m_targets == other.m_targets && m_proof == other.m_proof;
 }
 
 void BatchProof::Print()
 {
     std::cout << "targets: ";
-    print_vector(this->targets);
+    print_vector(m_targets);
 
     std::cout << "proof: ";
-    for (const Hash& hash : proof) {
+    for (const Hash& hash : m_proof) {
         std::cout << HexStr(hash) << ", ";
     }
 
     std::cout << std::endl;
 }
 
-const std::vector<uint64_t>& BatchProof::GetTargets() const { return targets; }
+const std::vector<uint64_t>& BatchProof::GetTargets() const { return m_targets; }
+
+const std::vector<uint64_t>& BatchProof::GetSortedTargets() const { return m_sorted_targets; }
+
+const std::vector<std::array<uint8_t, 32>>& BatchProof::GetHashes() const { return m_proof; }
 
 }; // namespace utreexo
