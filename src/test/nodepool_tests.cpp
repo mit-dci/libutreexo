@@ -7,7 +7,12 @@ using namespace utreexo;
 class TestNode
 {
 public:
-    void NodePoolDestroy() {}
+    Accumulator::NodePtr<TestNode> next;
+
+    void NodePoolDestroy()
+    {
+        next = nullptr;
+    }
 };
 
 BOOST_AUTO_TEST_SUITE(nodepool_tests)
@@ -53,6 +58,61 @@ BOOST_AUTO_TEST_CASE(simple)
 
     // Now that the survivor went out of scope, the pool should be emtpy.
     BOOST_CHECK(pool.Size() == 0);
+}
+
+BOOST_AUTO_TEST_CASE(chain)
+{
+    Accumulator::NodePool<TestNode> pool(16);
+    Accumulator::NodePtr<TestNode> head(&pool);
+    Accumulator::NodePtr<TestNode> curr = head;
+    while (pool.Size() < pool.Capacity()) {
+        curr->next = Accumulator::NodePtr<TestNode>(&pool);
+        curr = curr->next;
+    }
+
+    BOOST_CHECK(pool.Size() == pool.Capacity());
+
+    // Delete the head.
+    head = nullptr;
+    curr = nullptr;
+
+    BOOST_CHECK(pool.Size() == 0);
+}
+
+void vector_test(std::vector<Accumulator::NodePtr<TestNode>> nodes)
+{
+    for (Accumulator::NodePtr<TestNode>& node : nodes) {
+        BOOST_CHECK(node.RefCount() == 2);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(vectors)
+{
+    Accumulator::NodePool<TestNode> pool(16);
+
+    std::vector<Accumulator::NodePtr<TestNode>> nodes;
+    for (int i = 0; i < pool.Capacity(); i++) {
+        nodes.emplace_back(&pool);
+    }
+
+    for (Accumulator::NodePtr<TestNode>& node : nodes) {
+        BOOST_CHECK(node.RefCount() == 1);
+    }
+
+	vector_test(nodes);
+
+    auto copy = nodes;
+
+    for (Accumulator::NodePtr<TestNode>& node : nodes) {
+        BOOST_CHECK(node.RefCount() == 2);
+    }
+    copy.clear();
+
+    for (Accumulator::NodePtr<TestNode>& node : nodes) {
+        BOOST_CHECK(node.RefCount() == 1);
+    }
+
+    BOOST_CHECK(pool.Size() == pool.Capacity());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
