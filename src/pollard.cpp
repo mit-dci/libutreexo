@@ -64,6 +64,9 @@ public:
     static const int TARGET = 1 << 1;
     // This marks a node as cached.
     static const int CACHED = 1 << 2;
+    // The sibling of a node is cached.
+    // Roots have both the CACHED and SIBLING_CACHED bit set.
+    static const int SIBLING_CACHED = 1 << 3;
 
     NodePtr<Pollard::InternalNode> m_node;
 
@@ -90,6 +93,7 @@ public:
     bool IsTargetOrAncestor() const { return m_verification_flag & TARGET; }
     bool IsValid() const { return m_verification_flag & VALID; }
     bool IsCached() const { return m_verification_flag & CACHED; }
+    bool IsSiblingCached() const { return m_verification_flag & SIBLING_CACHED; }
     void MarkAsValid() { m_verification_flag |= VALID; }
 };
 
@@ -305,12 +309,14 @@ void Pollard::InitChildrenOfComputed(Accumulator::NodePtr<Pollard::Node>& node,
     left_child->m_sibling = node->m_sibling->m_nieces[1];
     left_child->m_position = ForestState(m_num_leaves).LeftChild(node->m_position);
     if (!recover_left) left_child->m_verification_flag |= Pollard::Node::CACHED;
+    if (!recover_right) left_child->m_verification_flag |= Pollard::Node::SIBLING_CACHED;
     left_child->m_num_leaves = m_num_leaves;
 
     right_child->m_parent = node;
     right_child->m_node = node->m_sibling->m_nieces[1];
     right_child->m_sibling = node->m_sibling->m_nieces[0];
     right_child->m_position = ForestState(m_num_leaves).Child(node->m_position, 1);
+    if (!recover_left) right_child->m_verification_flag |= Pollard::Node::SIBLING_CACHED;
     if (!recover_right) right_child->m_verification_flag |= Pollard::Node::CACHED;
     right_child->m_num_leaves = m_num_leaves;
 }
@@ -347,7 +353,8 @@ bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& 
             // TODO: make the roots have the correct positions before this.
             root->m_position = state.RootPosition(row);
             blaze_tree.push_back(root);
-            blaze_tree.back()->m_verification_flag = Pollard::Node::CACHED;
+            blaze_tree.back()->m_verification_flag =
+                Pollard::Node::CACHED | Pollard::Node::SIBLING_CACHED;
         }
 
         // Iterate over the proof tree in reverse and for each node:
@@ -493,7 +500,7 @@ bool Pollard::VerifyProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>> b
                 if (blaze->IsCached()) {
                     verification_success = blaze->m_node->m_hash == *target_hash;
                     // Mark the parent as valid if this is not a leaf root.
-                    if (verification_success && parent) parent->MarkAsValid();
+                    if (verification_success && parent && blaze->IsSiblingCached()) parent->MarkAsValid();
                 } else {
                     blaze->m_node->m_hash = *target_hash;
                 }
@@ -515,7 +522,7 @@ bool Pollard::VerifyProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>> b
 
                 // Mark the parent as valid if it exists.
                 // We do this to avoid hashing higher up on this branch.
-                if (parent) parent->MarkAsValid();
+                if (parent && blaze->IsSiblingCached()) parent->MarkAsValid();
             } else if (blaze->IsValid() && blaze->IsCached()) {
             } else {
                 // This node was not cached => we compute its hash from its children.
@@ -576,6 +583,9 @@ bool Pollard::Verify(const BatchProof& proof, const std::vector<Hash>& target_ha
         // TODO: the recovery tree currently holds every node of a new branch. In theory we only
         // need the top most node to chop of the entire branch.
         for (IntersectionNode& intersection : recovery_tree) {
+            assert(intersection.first);
+            assert(intersection.first->m_sibling);
+
             // Chop of the newly created branches.
             // Since this is the pollard, the intersection's sibling has
             // the its children.
@@ -589,6 +599,8 @@ bool Pollard::Verify(const BatchProof& proof, const std::vector<Hash>& target_ha
             case RECOVERY_CHOP_BOTH:
                 intersection.first->m_sibling->Chop();
                 break;
+            default:
+                assert(false);
             }
         }
 
@@ -611,7 +623,6 @@ bool Pollard::Verify(const BatchProof& proof, const std::vector<Hash>& target_ha
 
     // Ensure that the number of internal nodes does not change during verification.
     assert(prev_verify_internal_nodes == m_int_nodepool->Size());
-
     // Proof verification passed.
     return true;
 }

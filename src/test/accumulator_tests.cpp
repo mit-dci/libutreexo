@@ -230,9 +230,38 @@ BOOST_AUTO_TEST_CASE(simple_batchproof_verify_and_delete)
     BOOST_CHECK(pruned_roots != prev_pruned_roots);
 }
 
-// TODO: Add verification tests
-// Modified proofs should not pass.
-// Partial proofs that are missing non cached hashes should not pass.
-// Parital proofs that are only missing cached hashes should pass.
+BOOST_AUTO_TEST_CASE(hash_to_known_invalid_proof)
+{
+    RamForest full(0, 128);
+    Pollard pruned(0, 128);
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 15);
+
+    // Remember leaf 0
+    leaves[0].second = true;
+
+    full.Modify(leaves, {});
+    pruned.Modify(leaves, {});
+
+    // Prove and verify some leaves.
+    // This should populate the pollard with the required proof for deletion.
+    BatchProof proof;
+    std::vector<Hash> leaf_hashes = {leaves[4].first, leaves[5].first, leaves[6].first, leaves[7].first};
+    BOOST_CHECK(full.Prove(proof, leaf_hashes));
+
+    Hash invalid_hash;
+    invalid_hash.fill(0xff);
+
+    // Verification with an invalid proof hash should not pass.
+    BOOST_CHECK(!pruned.Verify(BatchProof(proof.GetSortedTargets(), {invalid_hash}), leaf_hashes));
+    BOOST_CHECK(pruned.Verify(proof, leaf_hashes));
+
+    leaf_hashes = {leaves[1].first};
+    BOOST_CHECK(full.Prove(proof, leaf_hashes));
+
+    BOOST_CHECK(!pruned.Verify(BatchProof(proof.GetSortedTargets(), {invalid_hash}), leaf_hashes));
+    BOOST_CHECK(pruned.Verify(proof, leaf_hashes));
+}
 
 BOOST_AUTO_TEST_SUITE_END()
