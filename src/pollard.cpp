@@ -472,9 +472,16 @@ bool Pollard::VerifyProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>> b
             NodePtr<Pollard::Node> parent = blaze->Parent();
             // If this node is valid, so is its parent.
             if (parent && blaze->IsValid()) parent->MarkAsValid();
+
             // Append the parent to the next blaze tree row, if it exists.
             // (A root does not have a parent.)
-            if (parent) next_blaze_tree.push_back(parent);
+            NodePtr<Pollard::Node> last_parent = next_blaze_tree.size() > 0 ?
+                                                     next_blaze_tree.back() :
+                                                     nullptr;
+            if (parent &&
+                (!last_parent || last_parent != parent)) {
+                next_blaze_tree.push_back(parent);
+            }
 
             bool is_leaf = blaze->m_position < m_num_leaves;
             if (is_leaf) {

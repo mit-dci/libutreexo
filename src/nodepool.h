@@ -222,7 +222,8 @@ public:
     NodePtr& operator=(const NodePtr&& other);
 
     /** Compare if two NodePtr point to the same node. */
-    bool operator==(const T& other) const;
+    bool operator==(const NodePtr<T>& other) const;
+    bool operator!=(const NodePtr<T>& other) const;
 
     /** Return wether or not the NodePtr points to null. */
     operator bool() const;
@@ -346,9 +347,15 @@ Accumulator::NodePtr<T>& Accumulator::NodePtr<T>::operator=(const NodePtr<U>&& o
 }
 
 template <class T>
-inline bool Accumulator::NodePtr<T>::operator==(const T& other) const
+inline bool Accumulator::NodePtr<T>::operator==(const NodePtr<T>& other) const
 {
     return other.m_int_ptr == m_int_ptr;
+}
+
+template <class T>
+inline bool Accumulator::NodePtr<T>::operator!=(const NodePtr<T>& other) const
+{
+    return !(*this == other);
 }
 
 template <class T>
