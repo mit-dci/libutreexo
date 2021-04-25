@@ -155,6 +155,10 @@ std::vector<Accumulator::NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t 
             rehash_path = path_node;
         }
 
+        if (!sibling) {
+            return family;
+        }
+
         node = sibling->m_nieces[lr_sib];
         sibling = sibling->m_nieces[lr];
 
@@ -245,12 +249,15 @@ void Pollard::FinalizeRemove(uint64_t next_num_leaves)
     std::vector<uint64_t> new_positions = current_state.RootPositions(next_state.m_num_leaves);
 
     // Select the new roots.
-    std::vector<NodePtr<Accumulator::Node>> new_roots;
-    new_roots.reserve(new_positions.size());
+    std::vector<NodePtr<Accumulator::Node>> new_roots(new_positions.size());
+    int new_root_index = new_roots.size() - 1;
 
-    for (uint64_t new_pos : new_positions) {
+    while (new_root_index >= 0) {
+        uint64_t new_pos = new_positions.at(new_root_index);
+
         NodePtr<Accumulator::Node> unused_path;
-        std::vector<NodePtr<InternalNode>> family = this->Read(new_pos, unused_path, false);
+        std::vector<NodePtr<InternalNode>> family = Read(new_pos, unused_path, false);
+        assert(family.size() == 2);
 
         // TODO: the forest state of these root nodes should reflect the new state
         // since they survive the remove op.
@@ -260,7 +267,17 @@ void Pollard::FinalizeRemove(uint64_t next_num_leaves)
         node->m_node = family.at(0);
         node->m_sibling = node->m_node;
         node->m_parent = nullptr;
-        new_roots.push_back(node);
+
+        // When truning a node into a root, it's nieces are really it's children
+        if (family.at(1)) {
+            node->m_node->m_nieces[0] = family.at(1)->m_nieces[0];
+            node->m_node->m_nieces[1] = family.at(1)->m_nieces[1];
+        } else {
+            node->m_node->Chop();
+        }
+
+        new_roots[new_root_index] = node;
+        --new_root_index;
     }
 
     m_roots.clear();
@@ -291,6 +308,8 @@ void Pollard::InitChildrenOfComputed(Accumulator::NodePtr<Pollard::Node>& node,
         // The left child does not exist in the pollard. We need to hook it in.
         Accumulator::NodePtr<Pollard::InternalNode> int_left(m_int_nodepool);
         int_left->m_hash.fill(0);
+        int_left->m_nieces[0] = nullptr;
+        int_left->m_nieces[1] = nullptr;
         node->m_sibling->m_nieces[0] = int_left;
         recover_left = true;
     }
@@ -299,6 +318,8 @@ void Pollard::InitChildrenOfComputed(Accumulator::NodePtr<Pollard::Node>& node,
         // The right child does not exist in the pollard. We need to hook it in.
         Accumulator::NodePtr<Pollard::InternalNode> int_right(m_int_nodepool);
         int_right->m_hash.fill(0);
+        int_right->m_nieces[0] = nullptr;
+        int_right->m_nieces[1] = nullptr;
         node->m_sibling->m_nieces[1] = int_right;
         recover_right = true;
     }
