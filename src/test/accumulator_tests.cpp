@@ -3,6 +3,7 @@
 #include <boost/test/unit_test.hpp>
 #include <chrono>
 #include <cstring>
+#include <random>
 
 BOOST_AUTO_TEST_SUITE(accumulator_tests)
 
@@ -304,6 +305,47 @@ BOOST_AUTO_TEST_CASE(hash_to_known_invalid_proof)
 
     BOOST_CHECK(!pruned.Verify(BatchProof(proof.GetSortedTargets(), {invalid_hash}), leaf_hashes));
     BOOST_CHECK(pruned.Verify(proof, leaf_hashes));
+}
+
+BOOST_AUTO_TEST_CASE(simple_blockchain)
+{
+    RamForest full(0, 1024);
+    Pollard pruned(0, 1024);
+    int num_blocks = 1000;
+    int num_max_adds = 8;
+    int num_max_dels = 8;
+    int unique_hash = 0;
+
+    std::default_random_engine generator;
+    std::uniform_int_distribution<int> add_distribution(1, num_max_adds);
+
+    for (int i = 0; i < num_blocks; i++) {
+        int num_adds = add_distribution(generator);
+        std::vector<Leaf> adds;
+        CreateTestLeaves(adds, num_adds, unique_hash);
+        unique_hash += adds.size();
+
+        std::vector<Hash> leaf_hashes;
+        int min = 0, max = full.NumLeaves() - 1;
+        while (max > 0 && min != max) {
+            std::uniform_int_distribution<int> del_distribution(min, max);
+            int del_index = del_distribution(generator);
+            leaf_hashes.push_back(full.GetLeaf(del_index));
+            min = del_index + 1 > max ? max : del_index + 1;
+        }
+
+        BatchProof proof;
+        BOOST_CHECK(full.Prove(proof, leaf_hashes));
+        BOOST_CHECK(full.Modify(adds, proof.GetSortedTargets()));
+
+        BOOST_TEST(pruned.Verify(proof, leaf_hashes));
+        BOOST_CHECK(pruned.Modify(adds, proof.GetSortedTargets()));
+
+        std::vector<Hash> pruned_roots, full_roots;
+        pruned.Roots(pruned_roots);
+        full.Roots(full_roots);
+        BOOST_CHECK(full_roots == pruned_roots);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
