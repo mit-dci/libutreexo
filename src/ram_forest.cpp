@@ -296,4 +296,12 @@ void RamForest::Add(const std::vector<Leaf>& leaves)
     assert(m_posmap.size() == m_num_leaves);
 }
 
+Hash RamForest::GetLeaf(uint64_t pos) const
+{
+    assert(pos < m_num_leaves);
+    Hash h;
+    bool ok = Read(h, pos);
+    assert(ok);
+    return h;
+}
 }; // namespace utreexo

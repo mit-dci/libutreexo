@@ -43,8 +43,10 @@ public:
     RamForest(uint64_t num_leaves, int max_nodes);
 
     bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const override;
-	bool Verify(const BatchProof& proof, const std::vector<Hash>& target_hashes) override;
+    bool Verify(const BatchProof& proof, const std::vector<Hash>& target_hashes) override;
     void Add(const std::vector<Leaf>& leaves) override;
+
+    Hash GetLeaf(uint64_t pos) const;
 };
 
 };     // namespace utreexo
