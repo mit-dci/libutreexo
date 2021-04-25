@@ -341,6 +341,8 @@ BOOST_AUTO_TEST_CASE(simple_blockchain)
         BOOST_TEST(pruned.Verify(proof, leaf_hashes));
         BOOST_CHECK(pruned.Modify(adds, proof.GetSortedTargets()));
 
+        if (proof.GetTargets().size() > 0) BOOST_CHECK(!pruned.Verify(proof, leaf_hashes));
+
         std::vector<Hash> pruned_roots, full_roots;
         pruned.Roots(pruned_roots);
         full.Roots(full_roots);

@@ -18,6 +18,22 @@ public:
     RamForest* m_forest;
 
     Node() {}
+    Node(RamForest* forest,
+         uint64_t num_leaves,
+         uint64_t pos)
+        : m_forest(forest)
+    {
+        m_num_leaves = num_leaves;
+        m_position = pos;
+    }
+    Node(RamForest* forest,
+         const Hash& hash,
+         uint64_t num_leaves,
+         uint64_t pos)
+        : RamForest::Node(forest, num_leaves, pos)
+    {
+        m_hash = hash;
+    }
 
     const Hash& GetHash() const override;
     void ReHash() override;
@@ -67,11 +83,8 @@ Accumulator::NodePtr<Accumulator::Node> RamForest::Node::Parent() const
     }
 
     // Return the parent of this node.
-    auto node = NodePtr<RamForest::Node>(m_forest->m_nodepool);
-    node->m_num_leaves = m_num_leaves;
-    node->m_forest = m_forest;
-    node->m_position = parent_pos;
-    return node;
+    return Accumulator::MakeNodePtr(
+        m_forest->m_nodepool, m_forest, m_num_leaves, parent_pos);
 }
 
 // RamForest
@@ -139,12 +152,8 @@ Accumulator::NodePtr<Accumulator::Node> RamForest::SwapSubTrees(uint64_t from, u
         to = current_state.Parent(to);
     }
 
-    auto node = NodePtr<RamForest::Node>(m_nodepool);
-    node->m_num_leaves = m_num_leaves;
-    node->m_forest = this;
-    node->m_position = to;
-
-    return node;
+    return Accumulator::MakeNodePtr(
+        m_nodepool, this, m_num_leaves, to);
 }
 
 Accumulator::NodePtr<Accumulator::Node> RamForest::MergeRoot(uint64_t parent_pos, Hash parent_hash)
@@ -160,12 +169,8 @@ Accumulator::NodePtr<Accumulator::Node> RamForest::MergeRoot(uint64_t parent_pos
     // add hash to forest
     m_data.at(row).push_back(parent_hash);
 
-    auto node = NodePtr<RamForest::Node>(m_nodepool);
-    // TODO: should we set m_forest_state on the node?
-    node->m_num_leaves = m_num_leaves;
-    node->m_forest = this;
-    node->m_position = parent_pos;
-    node->m_hash = m_data.at(row).back();
+    NodePtr<RamForest::Node> node = Accumulator::MakeNodePtr(
+        m_nodepool, this, m_data.at(row).back(), m_num_leaves, parent_pos);
     m_roots.push_back(node);
 
     return m_roots.back();
@@ -176,11 +181,8 @@ Accumulator::NodePtr<Accumulator::Node> RamForest::NewLeaf(const Leaf& leaf)
     // append new hash on row 0 (as a leaf)
     this->m_data.at(0).push_back(leaf.first);
 
-    NodePtr<RamForest::Node> new_root(m_nodepool);
-    new_root->m_num_leaves = m_num_leaves;
-    new_root->m_forest = this;
-    new_root->m_position = m_num_leaves;
-    new_root->m_hash = leaf.first;
+    NodePtr<RamForest::Node> new_root = Accumulator::MakeNodePtr(
+        m_nodepool, this, leaf.first, m_num_leaves, m_num_leaves);
     m_roots.push_back(new_root);
 
     m_posmap[leaf.first] = new_root->m_position;
@@ -221,9 +223,8 @@ void RamForest::FinalizeRemove(uint64_t next_num_leaves)
     new_roots.reserve(new_positions.size());
 
     for (uint64_t new_pos : new_positions) {
-        auto new_root = NodePtr<RamForest::Node>(m_nodepool);
-        new_root->m_forest = this;
-        new_root->m_position = new_pos;
+        NodePtr<RamForest::Node> new_root = Accumulator::MakeNodePtr(
+            m_nodepool, this, next_num_leaves, new_pos);
         bool ok = Read(new_root->m_hash, new_pos);
         assert(ok);
         new_roots.push_back(new_root);

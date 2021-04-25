@@ -94,6 +94,15 @@ protected:
 
     /* Compute the parent hash from two children. */
     static void ParentHash(Hash& parent, const Hash& left, const Hash& right);
+
+    template <class T, typename... Args>
+    static NodePtr<T> MakeNodePtr(NodePool<T>* pool, const Args&... args)
+    {
+        NodePtr<T> node(pool);
+        assert(node);
+        *node = T(args...);
+        return node;
+    }
 };
 
 };     // namespace utreexo

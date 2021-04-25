@@ -23,7 +23,20 @@ public:
     Hash m_hash;
     NodePtr<InternalNode> m_nieces[2];
 
-    InternalNode() {}
+    InternalNode() : InternalNode(nullptr, nullptr) {}
+    InternalNode(NodePtr<InternalNode> left, NodePtr<InternalNode> right)
+    {
+        m_nieces[0] = left;
+        m_nieces[1] = right;
+        m_hash.fill(0);
+    }
+    InternalNode(NodePtr<InternalNode> left, NodePtr<InternalNode> right, const Hash& hash)
+    {
+        m_nieces[0] = left;
+        m_nieces[1] = right;
+        m_hash = hash;
+    }
+
     ~InternalNode() {}
 
     /* Chop of nieces */
@@ -77,6 +90,18 @@ public:
     uint8_t m_verification_flag{0};
 
     Node() {}
+    Node(NodePtr<Pollard::InternalNode> node,
+         NodePtr<Pollard::InternalNode> sibling,
+         NodePtr<Accumulator::Node> parent,
+         uint64_t num_leaves,
+         uint64_t pos)
+        : m_node(node), m_sibling(sibling), m_verification_flag(0)
+    {
+        m_parent = parent;
+        m_num_leaves = num_leaves;
+        m_position = pos;
+    }
+
     ~Node() {}
 
     const Hash& GetHash() const override;
@@ -146,13 +171,8 @@ std::vector<Accumulator::NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t 
         uint8_t lr_sib = current_state.Sibling(lr);
 
         if (record_path) {
-            auto path_node = NodePtr<Pollard::Node>(m_nodepool);
-            path_node->m_num_leaves = m_num_leaves;
-            path_node->m_position = node_pos;
-            path_node->m_node = node;
-            path_node->m_parent = rehash_path;
-            path_node->m_sibling = sibling;
-            rehash_path = path_node;
+            rehash_path = Accumulator::MakeNodePtr(m_nodepool, node, sibling, rehash_path,
+                                                   m_num_leaves, node_pos);
         }
 
         if (!sibling) {
@@ -194,19 +214,13 @@ Accumulator::NodePtr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uin
 
 Accumulator::NodePtr<Accumulator::Node> Pollard::NewLeaf(const Leaf& leaf)
 {
-    auto int_node = NodePtr<InternalNode>(m_int_nodepool);
-    int_node->m_hash = leaf.first;
-
     assert(m_remember);
-    int_node->m_nieces[0] = leaf.second ? *m_remember : nullptr;
-    int_node->m_nieces[1] = nullptr;
+    NodePtr<InternalNode> int_node = Accumulator::MakeNodePtr(
+        m_int_nodepool, leaf.second ? *m_remember : nullptr, nullptr, leaf.first);
 
-    auto node = NodePtr<Pollard::Node>(m_nodepool);
-    node->m_num_leaves = m_num_leaves;
-    node->m_position = m_num_leaves;
-    node->m_node = int_node;
-    node->m_sibling = int_node;
-    node->m_parent = nullptr;
+    NodePtr<Pollard::Node> node = Accumulator::MakeNodePtr(
+        m_nodepool, /*node*/ int_node, /*sibling*/ int_node, /*parent*/ nullptr,
+        m_num_leaves, m_num_leaves);
     m_roots.push_back(node);
 
     return m_roots.back();
@@ -224,18 +238,13 @@ Accumulator::NodePtr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, 
     std::swap(int_left->m_nieces, int_right->m_nieces);
 
     // create internal node
-    auto int_node = NodePtr<InternalNode>(m_int_nodepool);
-    int_node->m_hash = parent_hash;
-    int_node->m_nieces[0] = int_left;
-    int_node->m_nieces[1] = int_right;
+    NodePtr<InternalNode> int_node = Accumulator::MakeNodePtr(
+        m_int_nodepool, int_left, int_right, parent_hash);
     int_node->Prune();
 
-    auto node = NodePtr<Pollard::Node>(m_nodepool);
-    node->m_num_leaves = m_num_leaves;
-    node->m_position = parent_pos;
-    node->m_node = int_node;
-    node->m_sibling = int_node;
-    node->m_parent = nullptr;
+    NodePtr<Pollard::Node> node = Accumulator::MakeNodePtr(
+        m_nodepool, /*node*/ int_node, /*sibling*/ int_node, /*parent*/ nullptr,
+        m_num_leaves, parent_pos);
     m_roots.push_back(node);
 
     return m_roots.back();
@@ -261,12 +270,9 @@ void Pollard::FinalizeRemove(uint64_t next_num_leaves)
 
         // TODO: the forest state of these root nodes should reflect the new state
         // since they survive the remove op.
-        auto node = NodePtr<Pollard::Node>(m_nodepool);
-        node->m_num_leaves = current_state.m_num_leaves;
-        node->m_position = new_pos;
-        node->m_node = family.at(0);
-        node->m_sibling = node->m_node;
-        node->m_parent = nullptr;
+        NodePtr<Pollard::Node> node = Accumulator::MakeNodePtr(
+            m_nodepool, family.at(0), family.at(0), nullptr,
+            current_state.m_num_leaves, new_pos);
 
         // When truning a node into a root, it's nieces are really it's children
         if (family.at(1)) {
@@ -306,40 +312,27 @@ void Pollard::InitChildrenOfComputed(Accumulator::NodePtr<Pollard::Node>& node,
 {
     if (!node->m_sibling->m_nieces[0]) {
         // The left child does not exist in the pollard. We need to hook it in.
-        Accumulator::NodePtr<Pollard::InternalNode> int_left(m_int_nodepool);
-        int_left->m_hash.fill(0);
-        int_left->m_nieces[0] = nullptr;
-        int_left->m_nieces[1] = nullptr;
-        node->m_sibling->m_nieces[0] = int_left;
+        node->m_sibling->m_nieces[0] = Accumulator::MakeNodePtr(m_int_nodepool, nullptr, nullptr);
         recover_left = true;
     }
 
     if (!node->m_sibling->m_nieces[1]) {
         // The right child does not exist in the pollard. We need to hook it in.
-        Accumulator::NodePtr<Pollard::InternalNode> int_right(m_int_nodepool);
-        int_right->m_hash.fill(0);
-        int_right->m_nieces[0] = nullptr;
-        int_right->m_nieces[1] = nullptr;
-        node->m_sibling->m_nieces[1] = int_right;
+        node->m_sibling->m_nieces[1] = Accumulator::MakeNodePtr(m_int_nodepool, nullptr, nullptr);
         recover_right = true;
     }
 
-    // TODO: create macros or something for these inits.
-    left_child->m_parent = node;
-    left_child->m_node = node->m_sibling->m_nieces[0];
-    left_child->m_sibling = node->m_sibling->m_nieces[1];
-    left_child->m_position = ForestState(m_num_leaves).LeftChild(node->m_position);
+    left_child = Accumulator::MakeNodePtr(
+        m_nodepool, /*node*/ node->m_sibling->m_nieces[0], /*sibling*/ node->m_sibling->m_nieces[1], /*parent*/ node,
+        m_num_leaves, ForestState(m_num_leaves).LeftChild(node->m_position));
     if (!recover_left) left_child->m_verification_flag |= Pollard::Node::CACHED;
     if (!recover_right) left_child->m_verification_flag |= Pollard::Node::SIBLING_CACHED;
-    left_child->m_num_leaves = m_num_leaves;
 
-    right_child->m_parent = node;
-    right_child->m_node = node->m_sibling->m_nieces[1];
-    right_child->m_sibling = node->m_sibling->m_nieces[0];
-    right_child->m_position = ForestState(m_num_leaves).Child(node->m_position, 1);
+    right_child = Accumulator::MakeNodePtr(
+        m_nodepool, /*node*/ node->m_sibling->m_nieces[1], /*sibling*/ node->m_sibling->m_nieces[0], /*parent*/ node,
+        m_num_leaves, ForestState(m_num_leaves).Child(node->m_position, 1));
     if (!recover_left) right_child->m_verification_flag |= Pollard::Node::SIBLING_CACHED;
     if (!recover_right) right_child->m_verification_flag |= Pollard::Node::CACHED;
-    right_child->m_num_leaves = m_num_leaves;
 }
 
 bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& blaze,
@@ -409,8 +402,8 @@ bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& 
 
                 // Since this is computed node it must have two children
                 // in the blaze tree.
-                Accumulator::NodePtr<Pollard::Node> left_child(m_nodepool);
-                Accumulator::NodePtr<Pollard::Node> right_child(m_nodepool);
+                Accumulator::NodePtr<Pollard::Node> left_child = nullptr;
+                Accumulator::NodePtr<Pollard::Node> right_child = nullptr;
                 bool recover_left = false, recover_right = false;
 
                 // Initialise the children of this computed node.
