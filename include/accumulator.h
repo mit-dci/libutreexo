@@ -88,7 +88,7 @@ protected:
     virtual void FinalizeRemove(uint64_t next_num_leaves) = 0;
 
     /* Add new leaves to the accumulator. */
-    virtual void Add(const std::vector<Leaf>& leaves);
+    virtual bool Add(const std::vector<Leaf>& leaves);
     /* Remove target leaves from the accumulator. */
     bool Remove(const std::vector<uint64_t>& targets);
 

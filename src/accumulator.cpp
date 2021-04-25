@@ -22,8 +22,7 @@ Accumulator::~Accumulator() {}
 bool Accumulator::Modify(const std::vector<Leaf>& leaves, const std::vector<uint64_t>& targets)
 {
     if (!Remove(targets)) return false;
-    // Addition can/should never fail.
-    Add(leaves);
+    if (!Add(leaves)) return false;
 
     return true;
 }
@@ -84,7 +83,7 @@ void Accumulator::PrintRoots() const
     }
 }
 
-void Accumulator::Add(const std::vector<Leaf>& leaves)
+bool Accumulator::Add(const std::vector<Leaf>& leaves)
 {
     ForestState current_state(m_num_leaves);
     // Adding leaves can't be batched, so we add one by one.
@@ -120,6 +119,8 @@ void Accumulator::Add(const std::vector<Leaf>& leaves)
         m_roots[1]->m_position = current_state.RootPosition(0);
         m_roots[0]->m_position = current_state.RootPosition(current_state.NumRows() - 1);
     }
+
+    return true;
 }
 
 bool Accumulator::Remove(const std::vector<uint64_t>& targets)
@@ -162,6 +163,8 @@ bool Accumulator::Remove(const std::vector<uint64_t>& targets)
 
         dirty_nodes = next_dirty_nodes;
     }
+
+    assert(dirty_nodes.size() == 0);
 
     uint64_t next_num_leaves = m_num_leaves - targets.size();
     FinalizeRemove(next_num_leaves);

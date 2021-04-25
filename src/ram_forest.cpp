@@ -203,6 +203,7 @@ void RamForest::FinalizeRemove(uint64_t next_num_leaves)
 
         m_posmap.erase(to_erase);
     }
+    assert(m_posmap.size() == next_num_leaves);
 
     uint64_t num_leaves = next_state.m_num_leaves;
     // Go through each row and resize the row vectors for the next forest state.
@@ -277,8 +278,18 @@ bool RamForest::Verify(const BatchProof& proof, const std::vector<Hash>& target_
     return true;
 }
 
-void RamForest::Add(const std::vector<Leaf>& leaves)
+bool RamForest::Add(const std::vector<Leaf>& leaves)
 {
+    // Each leaf must have a unique hash, because the leaf position map (m_posmap)
+    // can't deal with multiple leaf that have the same hash.
+    for (const Leaf& leaf : leaves) {
+        auto it = m_posmap.find(leaf.first);
+        if (it != m_posmap.end()) {
+            // This leaf is already included in the accumulator.
+            return false;
+        }
+    }
+
     // Preallocate data with the required size.
     ForestState next_state(m_num_leaves + leaves.size());
     for (uint8_t row = 0; row <= next_state.NumRows(); ++row) {
@@ -290,10 +301,11 @@ void RamForest::Add(const std::vector<Leaf>& leaves)
     }
     assert(m_data.size() > next_state.NumRows());
 
-    Accumulator::Add(leaves);
-
+    bool ok = Accumulator::Add(leaves);
     assert(next_state.m_num_leaves == m_num_leaves);
     assert(m_posmap.size() == m_num_leaves);
+
+    return ok;
 }
 
 Hash RamForest::GetLeaf(uint64_t pos) const
