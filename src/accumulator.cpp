@@ -38,6 +38,11 @@ void Accumulator::Roots(std::vector<Hash>& roots) const
     }
 }
 
+uint64_t Accumulator::NumLeaves() const
+{
+    return m_num_leaves;
+}
+
 // https://github.com/bitcoin/bitcoin/blob/7f653c3b22f0a5267822eec017aea6a16752c597/src/util/strencodings.cpp#L580
 template <class T>
 std::string HexStr(const T s)

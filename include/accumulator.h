@@ -47,6 +47,8 @@ public:
 
     void PrintRoots() const;
 
+    uint64_t NumLeaves() const;
+
 protected:
     /*
      * Node represents a node in the accumulator forest.
