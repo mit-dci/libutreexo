@@ -102,6 +102,8 @@ void Accumulator::Add(const std::vector<Leaf>& leaves)
             --root;
         }
 
+        uint8_t prev_rows = current_state.NumRows();
+
         ++m_num_leaves;
         current_state = ForestState(m_num_leaves);
 
@@ -110,7 +112,6 @@ void Accumulator::Add(const std::vector<Leaf>& leaves)
         // In this case there will always be exactly two roots, one on row 0 and one
         // on the next-to-last row.
 
-        uint8_t prev_rows = current_state.NumRows();
         if (prev_rows == 0 || prev_rows == current_state.NumRows()) {
             continue;
         }
