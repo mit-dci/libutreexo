@@ -21,73 +21,117 @@ void SetHash(Hash& hash, int num)
     hash[4] = 0xFF;
 }
 
-void CreateTestLeaves(std::vector<Leaf>& leaves, int count)
+void CreateTestLeaves(std::vector<Leaf>& leaves, int count, int offset)
 {
     for (int i = 0; i < count; i++) {
         Hash hash;
-        SetHash(hash, i);
+        SetHash(hash, offset + i);
         leaves.emplace_back(std::move(hash), false);
     }
 }
 
-BOOST_AUTO_TEST_CASE(simple_add)
+void CreateTestLeaves(std::vector<Leaf>& leaves, int count)
 {
-    Accumulator* full = (Accumulator*)new Pollard(0, 160);
+    CreateTestLeaves(leaves, count, 0);
+}
 
+Hash HashFromStr(const std::string& hex)
+{
+    const signed char p_util_hexdigit[256] =
+        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -1, -1, -1, -1, -1,
+         -1, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         -1, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+
+    Hash h;
+    assert(hex.size() == 64);
+    int digits = 64;
+
+    for (int i = 31; i >= 0;) {
+        h[i] = p_util_hexdigit[hex[--digits]];
+        if (digits > 0) {
+            h[i] |= p_util_hexdigit[hex[--digits]] << 4;
+            i--;
+        }
+    }
+
+    return h;
+}
+
+// Simple test that adds and deletes a bunch of elements from both a forest and pollard.
+BOOST_AUTO_TEST_CASE(simple)
+{
+    Pollard pruned(0, 64);
+    RamForest full(0, 64);
+
+    // 1. Add 64 elements
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 64);
 
-    BOOST_CHECK(full->Modify(leaves, {}));
+    BOOST_CHECK(pruned.Modify(leaves, {}));
+    BOOST_CHECK(full.Modify(leaves, {}));
 
-    delete full;
-}
+    // 2. Check that roots of the forest and pollard match
+    std::vector<Hash> pruned_roots, full_roots;
+    pruned.Roots(pruned_roots);
+    full.Roots(full_roots);
 
-BOOST_AUTO_TEST_CASE(simple_full)
-{
-    Accumulator* full = (Accumulator*)new RamForest(0, 32);
+    BOOST_CHECK(pruned_roots.size() == 1);
+    BOOST_CHECK(full_roots.size() == 1);
 
-    std::vector<Leaf> leaves;
-    CreateTestLeaves(leaves, 16);
-    // Add test leaves, dont delete any.
-    full->Modify(leaves, std::vector<uint64_t>());
-    // Delete some leaves, dont add any new ones.
-    leaves.clear();
-    full->Modify(leaves, {0, 2, 3, 9});
+    BOOST_CHECK(pruned_roots[0] == HashFromStr("6692c043bfd19c717a07a931833b1748cff69aa4349110948907ab125f744c25"));
+    BOOST_CHECK(pruned_roots == full_roots);
 
-    delete full;
-}
+    // 3. Prove elements 0, 2, 3 and 9 in the forest
+    BatchProof proof;
+    std::vector<Hash> leaf_hashes = {leaves[0].first, leaves[2].first, leaves[3].first, leaves[9].first};
+    BOOST_CHECK(full.Prove(proof, leaf_hashes));
 
-BOOST_AUTO_TEST_CASE(simple_pruned)
-{
-    Accumulator* full = (Accumulator*)new Pollard(0, 64);
+    // 4. Let the pollard verify the proof
+    BOOST_CHECK(pruned.Verify(proof, leaf_hashes));
 
-    std::vector<Leaf> leaves;
-    CreateTestLeaves(leaves, 32);
-    // Remember all leaves
-    for (Leaf& leaf : leaves)
-        leaf.second = true;
-    // Add test leaves, dont delete any.
-    full->Modify(leaves, std::vector<uint64_t>());
-    // Delete some leaves, dont add any new ones.
-    leaves.clear();
-    full->Modify(leaves, {0, 2, 3, 9});
-    //full->PrintRoots();
+    // 5. Delete the elements from both the forest and pollard
+    BOOST_CHECK(full.Modify({}, proof.GetSortedTargets()));
+    BOOST_CHECK(pruned.Modify({}, proof.GetSortedTargets()));
 
-    delete full;
+    // 6. Check that the roots match after the deletion
+    pruned.Roots(pruned_roots);
+    full.Roots(full_roots);
+
+    BOOST_CHECK(pruned_roots.size() == 4);
+    BOOST_CHECK(full_roots.size() == 4);
+
+    BOOST_CHECK(pruned_roots[0] == HashFromStr("b868b67e97610dc20fd4052d08c390cf8fc95eef3c7ee717aebc85a02e81cd68"));
+    BOOST_CHECK(pruned_roots[1] == HashFromStr("4a812f9dc3a1691f4b6de9ec07ecb2014a3c8839182592549a2d8508631cd908"));
+    BOOST_CHECK(pruned_roots[2] == HashFromStr("891899fa84a5c8659b007ce655b7cc5cf4b92493477db1095518cfc732024ef2"));
+    BOOST_CHECK(pruned_roots[3] == HashFromStr("aee875faf7276a9817d0db6195414118b1348697d2e2abd4b3fcee46c579833b"));
+    BOOST_CHECK(pruned_roots == full_roots);
 }
 
 BOOST_AUTO_TEST_CASE(batchproof_serialization)
 {
-    Accumulator* full = (Accumulator*)new RamForest(0, 64);
+    RamForest full(0, 64);
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 32);
 
-    full->Modify(leaves, std::vector<uint64_t>());
+    full.Modify(leaves, {});
 
     std::vector<uint8_t> proof_bytes;
     BatchProof proof1;
-    full->Prove(proof1, {leaves[0].first, leaves[1].first});
+    BOOST_CHECK(full.Prove(proof1, {leaves[0].first, leaves[1].first}));
     proof1.Serialize(proof_bytes);
 
     BatchProof proof2;
@@ -244,8 +288,6 @@ BOOST_AUTO_TEST_CASE(hash_to_known_invalid_proof)
     full.Modify(leaves, {});
     pruned.Modify(leaves, {});
 
-    // Prove and verify some leaves.
-    // This should populate the pollard with the required proof for deletion.
     BatchProof proof;
     std::vector<Hash> leaf_hashes = {leaves[4].first, leaves[5].first, leaves[6].first, leaves[7].first};
     BOOST_CHECK(full.Prove(proof, leaf_hashes));
