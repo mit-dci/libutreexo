@@ -44,6 +44,7 @@ private:
                          const std::vector<Hash>& proof_hashes);
 
 public:
+    Pollard(const std::vector<Hash>& roots, uint64_t num_leaves, int max_nodes);
     Pollard(uint64_t num_leaves, int max_nodes);
     ~Pollard();
 

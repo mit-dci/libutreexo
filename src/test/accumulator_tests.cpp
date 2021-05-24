@@ -350,4 +350,27 @@ BOOST_AUTO_TEST_CASE(simple_blockchain)
     }
 }
 
+BOOST_AUTO_TEST_CASE(pollard_restore)
+{
+    RamForest full(0, 128);
+    Pollard pruned(0, 128);
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 15);
+
+    full.Modify(leaves, {});
+    pruned.Modify(leaves, {});
+
+    BatchProof proof;
+    std::vector<Hash> leaf_hashes = {leaves[4].first, leaves[5].first, leaves[6].first, leaves[7].first};
+    BOOST_CHECK(full.Prove(proof, leaf_hashes));
+    BOOST_CHECK(pruned.Verify(proof, leaf_hashes));
+
+    std::vector<Hash> roots;
+    pruned.Roots(roots);
+
+    Pollard restored(roots, 15, 128);
+    BOOST_CHECK(restored.Verify(proof, leaf_hashes));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

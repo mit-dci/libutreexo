@@ -131,6 +131,24 @@ Pollard::Pollard(uint64_t num_leaves, int max_nodes) : Accumulator(num_leaves)
     m_remember = new NodePtr<Pollard::InternalNode>(m_int_nodepool);
 }
 
+Pollard::Pollard(const std::vector<Hash>& roots, uint64_t num_leaves, int max_nodes)
+    : Pollard(num_leaves, max_nodes)
+{
+    ForestState state(m_num_leaves);
+
+    assert(roots.size() == state.NumRoots());
+    auto root_positions = state.RootPositions();
+    assert(root_positions.size() == roots.size());
+
+	// Restore roots
+    for (int i = 0; i < roots.size(); ++i) {
+        auto int_node = MakeNodePtr(m_int_nodepool, nullptr, nullptr, roots.at(i));
+        m_roots.push_back(MakeNodePtr(m_nodepool,
+                                      int_node, int_node, nullptr,
+                                      m_num_leaves, root_positions.at(i)));
+    }
+}
+
 Pollard::~Pollard()
 {
     m_roots.clear();
