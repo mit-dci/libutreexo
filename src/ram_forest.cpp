@@ -96,6 +96,92 @@ RamForest::RamForest(uint64_t num_leaves, int max_nodes) : Accumulator(num_leave
     m_nodepool = new NodePool<Node>(max_nodes);
 }
 
+RamForest::RamForest(const std::string& file, int max_nodes) : Accumulator(0)
+{
+    this->m_data = std::vector<std::vector<Hash>>();
+    this->m_data.push_back(std::vector<Hash>());
+    m_nodepool = new NodePool<Node>(max_nodes);
+    m_file_path = file;
+
+    if (static_cast<bool>(std::fstream(file))) {
+        // We can restore the forest from an existing file.
+        m_file = std::fstream(file,
+                              std::fstream::in | std::fstream::out | std::fstream::binary);
+        Restore();
+    } else {
+        m_num_leaves = 0;
+        m_file = std::fstream(file,
+                              std::fstream::in | std::fstream::out | std::fstream::binary | std::fstream::trunc);
+        Commit();
+    }
+}
+
+RamForest::~RamForest()
+{
+    if (m_file.good()) {
+        Commit();
+        m_file.flush();
+        m_file.close();
+    }
+}
+
+bool RamForest::Restore()
+{
+    char uint64_buf[8];
+    m_file.seekg(0);
+
+    // restore number of leaves
+    m_file.read(reinterpret_cast<char*>(uint64_buf), 8);
+    m_num_leaves = ReadBE64(reinterpret_cast<const uint8_t*>(uint64_buf));
+
+    ForestState state(m_num_leaves);
+    // restore forest hashes
+    uint64_t num_hashes = m_num_leaves;
+    uint8_t row = 0;
+    uint64_t pos = 0;
+    while (num_hashes > 0) {
+        pos = state.RowOffset(row);
+        for (uint64_t i = 0; i < num_hashes; ++i) {
+            Hash hash;
+            m_file.read(reinterpret_cast<char*>(hash.data()), 32);
+            m_data[row].push_back(hash);
+
+            if (num_hashes == m_num_leaves) {
+                // populate position map
+                m_posmap[hash] = pos;
+            }
+            ++pos;
+        }
+
+        m_data.push_back({});
+        row++;
+        num_hashes >>= 1;
+    }
+}
+
+bool RamForest::Commit()
+{
+    char uint64_buf[8];
+    m_file.seekg(0);
+
+    // commit number of leaves
+    WriteBE64(reinterpret_cast<uint8_t*>(uint64_buf), m_num_leaves);
+    m_file.write(reinterpret_cast<char*>(uint64_buf), 8);
+
+    // commit forest hashes
+    ForestState state(m_num_leaves);
+    uint64_t num_hashes = m_num_leaves;
+    for (uint8_t i = 0; i <= state.NumRows(); ++i) {
+        assert(num_hashes <= m_data[i].size());
+        for (int j = 0; j < num_hashes; ++j) {
+            m_file.write(reinterpret_cast<const char*>(m_data[i][j].data()), 32);
+        }
+        num_hashes >>= 1;
+    }
+
+    return true;
+}
+
 bool RamForest::Read(Hash& hash, uint64_t pos) const
 {
     ForestState current_state = ForestState(m_num_leaves);

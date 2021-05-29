@@ -121,6 +121,29 @@ BOOST_AUTO_TEST_CASE(simple)
     BOOST_CHECK(pruned_roots == full_roots);
 }
 
+BOOST_AUTO_TEST_CASE(ramforest_disk)
+{
+    BatchProof proof;
+    std::vector<Leaf> leaves;
+    {
+        RamForest full("./test_forest", 64);
+        Pollard pollard(0, 64);
+
+        CreateTestLeaves(leaves, 32);
+
+        BOOST_CHECK(full.Modify(leaves, {}));
+        BOOST_CHECK(pollard.Modify(leaves, {}));
+        BOOST_CHECK(full.Prove(proof, {leaves[0].first}));
+        BOOST_CHECK(pollard.Verify(proof, {leaves[0].first}));
+    }
+
+    RamForest full("./test_forest", 64);
+    BatchProof copy;
+    BOOST_CHECK(full.Prove(copy, {leaves[0].first}));
+    BOOST_CHECK(copy == proof);
+}
+
+
 BOOST_AUTO_TEST_CASE(batchproof_serialization)
 {
     RamForest full(0, 64);

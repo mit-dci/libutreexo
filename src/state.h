@@ -98,6 +98,7 @@ public:
     uint8_t DetectRow(uint64_t pos) const;
     // Return the position of the first node in the row.
     uint64_t RowOffset(uint64_t pos) const;
+    uint64_t RowOffset(uint8_t row) const;
 
     /**
      * Compute the remove transformation swaps.

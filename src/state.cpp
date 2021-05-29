@@ -360,9 +360,13 @@ uint8_t ForestState::DetectRow(uint64_t pos) const
 
 uint64_t ForestState::RowOffset(uint64_t pos) const
 {
-    uint8_t row = this->DetectRow(pos);
-    uint64_t marker = this->MaxNodes();
-    return (0xFFFFFFFFFFFFFFFF << (this->NumRows() + 1 - row)) & marker;
+    return RowOffset(DetectRow(pos));
+}
+
+uint64_t ForestState::RowOffset(uint8_t row) const
+{
+    uint64_t marker = MaxNodes();
+    return (0xFFFFFFFFFFFFFFFF << (NumRows() + 1 - row)) & marker;
 }
 
 // transform
