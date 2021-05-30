@@ -36,7 +36,7 @@ private:
     bool Restore();
 
     /* Return the hash at a position */
-    bool Read(Hash& hash, uint64_t pos) const;
+    const Hash& Read(uint64_t pos) const;
 
     /* Swap the hashes of ranges (from, from+range) and (to, to+range). */
     void SwapRange(uint64_t from, uint64_t to, uint64_t range);
