@@ -128,4 +128,97 @@ const std::vector<uint64_t>& BatchProof::GetSortedTargets() const { return m_sor
 
 const std::vector<std::array<uint8_t, 32>>& BatchProof::GetHashes() const { return m_proof; }
 
+void UndoBatch::Serialize(std::vector<uint8_t>& bytes) const
+{
+    // num adds: 4 bytes
+    // numm dels: 4 bytes
+    // del positions: 4bytes * num dels
+    // del hashes: 32bytes * num dels
+    bytes.resize(4 + 4 + 4 * m_deleted_positions.size() + 32 * m_deleted_hashes.size());
+
+    int data_offset = 0;
+    WriteBE32(bytes.data(), uint32_t(m_num_additions));
+    data_offset += 4;
+    WriteBE32(bytes.data() + data_offset, uint32_t(m_deleted_positions.size()));
+    data_offset += 4;
+
+    for (const uint64_t& target : m_deleted_positions) {
+        WriteBE32(bytes.data() + data_offset, uint32_t(target));
+        data_offset += 4;
+    }
+
+    for (const Hash& hash : m_deleted_hashes) {
+        std::memcpy(bytes.data() + data_offset, hash.data(), 32);
+        data_offset += 32;
+    }
+}
+
+bool UndoBatch::Unserialize(const std::vector<uint8_t>& bytes)
+{
+    if (bytes.size() < 8) {
+        // 8 byte minmum for the number of additions and number of targets
+        return false;
+    }
+
+    int data_offset = 0;
+    m_num_additions = static_cast<uint64_t>(ReadBE32(bytes.data()));
+    data_offset += 4;
+    uint32_t num_targets = ReadBE32(bytes.data() + data_offset);
+    data_offset += 4;
+
+    if (bytes.size() != 4 + 4 + 4 * num_targets + 32 * num_targets) {
+        return false;
+    }
+
+    m_deleted_positions.clear();
+    m_deleted_hashes.clear();
+    m_deleted_positions.reserve(num_targets);
+    m_deleted_hashes.reserve(num_targets);
+
+    for (uint32_t i = 0; i < num_targets; ++i) {
+        m_deleted_positions.push_back(static_cast<uint64_t>(ReadBE32(bytes.data() + data_offset)));
+        data_offset += 4;
+    }
+
+    for (uint32_t i = 0; i < num_targets; ++i) {
+        Hash hash;
+        std::memcpy(hash.data(), bytes.data() + data_offset, 32);
+        data_offset += 32;
+        m_deleted_hashes.push_back(hash);
+    }
+
+    assert(data_offset == bytes.size());
+
+    return true;
+}
+
+uint64_t UndoBatch::GetNumAdds() const { return m_num_additions; }
+
+const std::vector<uint64_t>& UndoBatch::GetDeletedPositions() const { return m_deleted_positions; }
+
+const std::vector<std::array<uint8_t, 32>>& UndoBatch::GetDeletedHashes() const { return m_deleted_hashes; }
+
+bool UndoBatch::operator==(const UndoBatch& other)
+{
+    return m_num_additions == other.m_num_additions &&
+           m_deleted_positions.size() == other.m_deleted_positions.size() &&
+           m_deleted_hashes.size() == other.m_deleted_hashes.size() &&
+           m_deleted_positions == other.m_deleted_positions &&
+           m_deleted_hashes == other.m_deleted_hashes;
+}
+
+void UndoBatch::Print()
+{
+    std::cout << "prev num adds: " << m_num_additions << std::endl;
+    std::cout << "deleted positions: ";
+    print_vector(m_deleted_positions);
+
+    std::cout << "deleted hashes: ";
+    for (const Hash& hash : m_deleted_hashes) {
+        std::cout << HexStr(hash) << ", ";
+    }
+
+    std::cout << std::endl;
+}
+
 }; // namespace utreexo

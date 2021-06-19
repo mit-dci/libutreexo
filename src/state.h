@@ -27,10 +27,17 @@ public:
         // See `makeCollapse` for collapse definition.
         bool m_collapse;
 
+        bool m_is_range_swap;
+        uint64_t m_range;
+
         explicit Swap(uint64_t from, uint64_t to)
-            : m_from(from), m_to(to), m_collapse(false) {}
+            : m_from(from), m_to(to), m_collapse(false), m_is_range_swap(false), m_range(0) {}
         explicit Swap(uint64_t from, uint64_t to, bool collapse)
-            : m_from(from), m_to(to), m_collapse(collapse) {}
+            : m_from(from), m_to(to), m_collapse(collapse), m_is_range_swap(false), m_range(0) {}
+        explicit Swap(uint64_t from, uint64_t to, uint64_t range)
+            : m_from(from), m_to(to), m_collapse(false), m_is_range_swap(true), m_range(range) {}
+
+        Swap ToLeaves(ForestState state) const;
     };
 
     // The number of leaves in the forest.
@@ -106,6 +113,8 @@ public:
      */
     std::vector<std::vector<ForestState::Swap>>
     Transform(const std::vector<uint64_t>& targets) const;
+
+    std::vector<ForestState::Swap> UndoTransform(const std::vector<uint64_t>& targets) const;
 
     // Misc:
 

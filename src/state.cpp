@@ -18,7 +18,7 @@ void print_vector(const std::vector<uint64_t>& vec)
 void print_swaps(const std::vector<ForestState::Swap>& vec)
 {
     for (auto i : vec)
-        std::cout << i.m_collapse << " (" << i.m_from << ", " << i.m_to << ") ";
+        std::cout << (i.m_is_range_swap ? 'r' : '_') << (i.m_collapse ? 'c' : '_') << " (" << i.m_from << ", " << i.m_to << ") " << i.m_range << " ";
     std::cout << std::endl;
 }
 
@@ -415,6 +415,22 @@ ForestState::Transform(const std::vector<uint64_t>& targets) const
     return swaps;
 }
 
+std::vector<ForestState::Swap> ForestState::UndoTransform(const std::vector<uint64_t>& targets) const
+{
+    std::vector<ForestState::Swap> undo_swaps;
+    auto prev_swaps = Transform(targets);
+
+    for (int r = 0; r < prev_swaps.size(); ++r) {
+        auto row = prev_swaps[r];
+        for (const ForestState::Swap& swap : row) {
+            if (swap.m_from == swap.m_to) continue;
+            undo_swaps.push_back(swap.ToLeaves(*this));
+        }
+    }
+
+    return undo_swaps;
+}
+
 // misc
 
 uint64_t _maxNodes(uint64_t num_leaves) { return (2 << _numRows(num_leaves)) - 1; }
@@ -608,4 +624,17 @@ void ForestState::SwapIfDescendant(ForestState::Swap swap,
     }
 }
 
+
+ForestState::Swap ForestState::Swap::ToLeaves(ForestState state) const
+{
+    uint8_t row = state.DetectRow(m_from);
+    if (row == 0) {
+        return *this;
+    }
+
+    return ForestState::Swap(
+        state.LeftDescendant(m_from, row),
+        state.LeftDescendant(m_to, row),
+        static_cast<uint64_t>(1 << static_cast<uint64_t>(row)));
+}
 }; // namespace utreexo
