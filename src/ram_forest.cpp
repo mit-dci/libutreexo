@@ -154,6 +154,13 @@ bool RamForest::Restore()
         row++;
         num_hashes >>= 1;
     }
+
+    // Restore roots
+    std::vector<uint64_t> root_positions = state.RootPositions();
+    for (const uint64_t& pos : root_positions) {
+        m_roots.push_back(Accumulator::MakeNodePtr(m_nodepool, this, Read(pos), m_num_leaves, pos));
+    }
+
     return true;
 }
 
