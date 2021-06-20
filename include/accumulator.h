@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <utility>
 #include <vector>
+#include <cassert>
 
 namespace utreexo {
 using Hash = std::array<uint8_t, 32>;

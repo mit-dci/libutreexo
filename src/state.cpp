@@ -4,6 +4,7 @@
 #include <iostream>
 #include <memory>
 #include <state.h>
+#include <cassert>
 
 namespace utreexo {
 
