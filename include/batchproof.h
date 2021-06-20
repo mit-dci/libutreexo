@@ -4,6 +4,7 @@
 #include <array>
 #include <stdint.h>
 #include <vector>
+#include <algorithm>
 
 namespace utreexo {
 
