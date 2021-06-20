@@ -123,6 +123,7 @@ BOOST_AUTO_TEST_CASE(simple)
 
 BOOST_AUTO_TEST_CASE(ramforest_disk)
 {
+    std::remove("./test_forest");
     BatchProof proof;
     std::vector<Leaf> leaves;
     {
