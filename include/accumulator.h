@@ -100,7 +100,10 @@ protected:
     static NodePtr<T> MakeNodePtr(NodePool<T>* pool, const Args&... args)
     {
         NodePtr<T> node(pool);
-        assert(node);
+        if (!node) {
+            throw std::runtime_error("Accumulator::MakeNodePtr node pool is out of nodes");
+        }
+
         *node = T(args...);
         return node;
     }

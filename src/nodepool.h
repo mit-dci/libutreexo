@@ -191,7 +191,7 @@ public:
     // Copy and Move constructors are important for reference counting.
 
     template <class U>
-    NodePtr(const NodePtr<U>& node) : NodePtr<T>((NodePool<T>*)node.m_pool, (T*)node.m_int_ptr, node.m_ref_count)
+    NodePtr(const NodePtr<U>& node) : NodePtr<T>(reinterpret_cast<NodePool<T>*>(node.m_pool), (T*)node.m_int_ptr, node.m_ref_count)
     {
     }
     NodePtr(const NodePtr& node) : NodePtr<T>(node.m_pool, node.m_int_ptr, node.m_ref_count) {}
@@ -245,7 +245,9 @@ Accumulator::NodePtr<T>::NodePtr(Accumulator::NodePool<T>* pool)
     m_pool = pool;
     m_int_ptr = m_pool->Take();
     m_ref_count = m_pool->RefCount(m_int_ptr);
-    *m_ref_count = 1;
+    if (m_int_ptr && m_ref_count) {
+        *m_ref_count = 1;
+    }
 }
 
 template <class T>
