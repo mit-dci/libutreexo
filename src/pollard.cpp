@@ -353,7 +353,7 @@ void Pollard::InitChildrenOfComputed(Accumulator::NodePtr<Pollard::Node>& node,
     if (!recover_right) right_child->m_verification_flag |= Pollard::Node::CACHED;
 }
 
-bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& blaze,
+bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& proof_tree_out,
                               std::vector<std::pair<Accumulator::NodePtr<Pollard::Node>, int>>& recovery,
                               const BatchProof& proof)
 {
@@ -368,7 +368,7 @@ bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& 
     // We use a std::deque here because we need to be able to append and prepend efficiently
     // and a vector does not offer that.
     // TODO: use std::deque in all of the verification logic?
-    std::deque<Accumulator::NodePtr<Pollard::Node>> blaze_tree;
+    std::deque<Accumulator::NodePtr<Pollard::Node>> proof_tree;
 
     int row = static_cast<int>(state.NumRows());
 
@@ -384,8 +384,8 @@ bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& 
             Accumulator::NodePtr<Accumulator::Node> root = m_roots.at(state.RootIndex(*computed_pos));
             // TODO: make the roots have the correct positions before this.
             root->m_position = state.RootPosition(row);
-            blaze_tree.push_back(root);
-            blaze_tree.back()->m_verification_flag =
+            proof_tree.push_back(root);
+            proof_tree.back()->m_verification_flag =
                 Pollard::Node::CACHED | Pollard::Node::SIBLING_CACHED;
         }
 
@@ -394,7 +394,7 @@ bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& 
         // - if it is a computed node we prepend its children to the next row.
         // - if it is a proof node we populate it with the provided proof hash.
         // (Because we go in reverse we are able to adjust for missing proof hashes based on what is cached)
-        for (auto node_it = blaze_tree.rbegin(); node_it != blaze_tree.rend(); ++node_it) {
+        for (auto node_it = proof_tree.rbegin(); node_it != proof_tree.rend(); ++node_it) {
             NodePtr<Pollard::Node>& node = *node_it;
 
             // Populate next row
@@ -419,7 +419,7 @@ bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& 
                 if (node->m_position < m_num_leaves) continue;
 
                 // Since this is computed node it must have two children
-                // in the blaze tree.
+                // in the proof tree.
                 Accumulator::NodePtr<Pollard::Node> left_child = nullptr;
                 Accumulator::NodePtr<Pollard::Node> right_child = nullptr;
                 bool recover_left = false, recover_right = false;
@@ -442,13 +442,13 @@ bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& 
                     recovery.emplace_back(node, RECOVERY_CHOP_RIGHT);
                 }
 
-                // Prepend the children to next row of the blaze tree.
+                // Prepend the children to next row of the proof tree.
                 next_row.push_front(right_child);
                 next_row.push_front(left_child);
             } else if (is_proof) {
                 // This node is a proof node we populate with the provided hash.
                 // We might not consume a hash from the proof if the node is cached.
-                // Proof nodes dont have children in the blaze tree, so we dont add any node to
+                // Proof nodes dont have children in the proof tree, so we dont add any node to
                 // the next row here.
 
                 node->m_verification_flag &= ~(Pollard::Node::TARGET);
@@ -480,61 +480,61 @@ bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& 
             }
         }
 
-        blaze_tree = next_row;
+        proof_tree = next_row;
         --row;
     }
 
-    std::copy(blaze_tree.begin(), blaze_tree.end(), std::inserter(blaze, blaze.begin()));
+    std::copy(proof_tree.begin(), proof_tree.end(), std::inserter(proof_tree_out, proof_tree_out.begin()));
 
     return proof_hash == proof.GetHashes().crend();
 }
 
 
-bool Pollard::VerifyProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>> blaze_tree,
+bool Pollard::VerifyProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>> proof_tree,
                               const std::vector<Hash>& target_hashes,
                               const std::vector<Hash>& proof_hashes)
 {
     bool verification_success = true;
     auto target_hash = target_hashes.begin();
 
-    while (blaze_tree.size() > 0 && verification_success) {
-        std::vector<NodePtr<Pollard::Node>> next_blaze_tree;
+    while (proof_tree.size() > 0 && verification_success) {
+        std::vector<NodePtr<Pollard::Node>> next_proof_tree;
 
-        // Iterate over the current blaze tree row.
-        for (NodePtr<Pollard::Node>& blaze : blaze_tree) {
+        // Iterate over the current proof tree row.
+        for (NodePtr<Pollard::Node>& proof_node : proof_tree) {
             // TODO: get rid of leaf proof nodes
-            if (!blaze->IsTargetOrAncestor()) continue;
+            if (!proof_node->IsTargetOrAncestor()) continue;
 
             // ==================================================
             // This node is a target or the ancestor of a target.
 
-            NodePtr<Pollard::Node> parent = blaze->Parent();
+            NodePtr<Pollard::Node> parent = proof_node->Parent();
             // If this node is valid, so is its parent.
-            if (parent && blaze->IsValid()) parent->MarkAsValid();
+            if (parent && proof_node->IsValid()) parent->MarkAsValid();
 
-            // Append the parent to the next blaze tree row, if it exists.
+            // Append the parent to the next proof tree row, if it exists.
             // (A root does not have a parent.)
-            NodePtr<Pollard::Node> last_parent = next_blaze_tree.size() > 0 ?
-                                                     next_blaze_tree.back() :
+            NodePtr<Pollard::Node> last_parent = next_proof_tree.size() > 0 ?
+                                                     next_proof_tree.back() :
                                                      nullptr;
             if (parent &&
                 (!last_parent || last_parent != parent)) {
-                next_blaze_tree.push_back(parent);
+                next_proof_tree.push_back(parent);
             }
 
-            bool is_leaf = blaze->m_position < m_num_leaves;
+            bool is_leaf = proof_node->m_position < m_num_leaves;
             if (is_leaf) {
                 assert(target_hash < target_hashes.end());
 
                 // ======================
                 // This node is a target.
                 // Either populate with target hash or verify that the hash matches if cached.
-                if (blaze->IsCached()) {
-                    verification_success = blaze->m_node->m_hash == *target_hash;
+                if (proof_node->IsCached()) {
+                    verification_success = proof_node->m_node->m_hash == *target_hash;
                     // Mark the parent as valid if this is not a leaf root.
-                    if (verification_success && parent && blaze->IsSiblingCached()) parent->MarkAsValid();
+                    if (verification_success && parent && proof_node->IsSiblingCached()) parent->MarkAsValid();
                 } else {
-                    blaze->m_node->m_hash = *target_hash;
+                    proof_node->m_node->m_hash = *target_hash;
                 }
 
 
@@ -545,26 +545,26 @@ bool Pollard::VerifyProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>> b
             // ==================================
             // This node is an ancestor of a target.
 
-            if (!blaze->IsValid() && blaze->IsCached()) {
+            if (!proof_node->IsValid() && proof_node->IsCached()) {
                 // This node is cached but not marked as valid (e.g.: a root) => we have to verify that the computed hash
                 // matches the cached one.
                 // Higher nodes on this branch are all valid.
-                verification_success = blaze->ReHashAndVerify();
+                verification_success = proof_node->ReHashAndVerify();
                 if (!verification_success) break;
 
                 // Mark the parent as valid if it exists.
                 // We do this to avoid hashing higher up on this branch.
-                if (parent && blaze->IsSiblingCached()) parent->MarkAsValid();
-            } else if (blaze->IsValid() && blaze->IsCached()) {
+                if (parent && proof_node->IsSiblingCached()) parent->MarkAsValid();
+            } else if (proof_node->IsValid() && proof_node->IsCached()) {
             } else {
                 // This node was not cached => we compute its hash from its children.
-                blaze->ReHashNoPrune();
+                proof_node->ReHashNoPrune();
                 // This node has to to have a parent because it cant be a root.
                 assert(parent);
             }
         }
 
-        blaze_tree = next_blaze_tree;
+        proof_tree = next_proof_tree;
     }
 
     // Make sure all proof and target hashes were consumed.
@@ -588,9 +588,9 @@ bool Pollard::Verify(const BatchProof& proof, const std::vector<Hash>& target_ha
 
     int prev_internal_nodes = m_int_nodepool->Size();
 
-    // The blaze tree holds the leaves of the partial tree involved in verifying the proof.
+    // The proof tree holds the leaves of the partial tree involved in verifying the proof.
     // The leaves know their parents, so the tree can be traversed from the bottom up.
-    std::vector<NodePtr<Pollard::Node>> blaze_tree;
+    std::vector<NodePtr<Pollard::Node>> proof_tree;
 
     // The recovery tree is needed in case the proof is invalid.
     // It holds the intersection nodes where new nodes have been populated.
@@ -599,16 +599,15 @@ bool Pollard::Verify(const BatchProof& proof, const std::vector<Hash>& target_ha
     using IntersectionNode = std::pair<NodePtr<Pollard::Node>, int>;
     std::vector<IntersectionNode> recovery_tree;
 
-    // Populate the blaze tree from top to bottom.
+    // Populate the proof tree from top to bottom.
     // This adds new empty nodes to the pollard that will either hold
     // proof hashes or hashes that were computed during verification.
-    bool create_ok = CreateProofTree(blaze_tree, recovery_tree, proof);
+    bool create_ok = CreateProofTree(proof_tree, recovery_tree, proof);
 
     int prev_verify_internal_nodes = m_int_nodepool->Size();
 
-    // Verify the blaze tree from bottom to top.
-    // This is were the "blaze" metaphore comes from because we "burn" the tree.
-    bool verify_ok = create_ok && VerifyProofTree(blaze_tree, target_hashes, proof.GetHashes());
+    // Verify the proof tree from bottom to top.
+    bool verify_ok = create_ok && VerifyProofTree(proof_tree, target_hashes, proof.GetHashes());
     if (!verify_ok) {
         // The proof was invalid and we have to revert the changes that were made to the pollard.
         // This is where we use the recovery tree to chop of the newly populated branches.
@@ -636,10 +635,10 @@ bool Pollard::Verify(const BatchProof& proof, const std::vector<Hash>& target_ha
             }
         }
 
-        // Clear the recovery and blaze tree, so the references to the internal nodes
+        // Clear the recovery and proof tree, so the references to the internal nodes
         // are removed.
         recovery_tree.clear();
-        blaze_tree.clear();
+        proof_tree.clear();
 
         // Ensure that the number of allocated internal nodes matches the
         // number of nodes before the verification.
@@ -647,11 +646,11 @@ bool Pollard::Verify(const BatchProof& proof, const std::vector<Hash>& target_ha
         return false;
     }
 
-    // TODO: in theory the blaze could be used during deletion as well.
-    // it has references to all nodes that get swaped around. Using the blaze
+    // TODO: in theory the proof tree could be used during deletion as well.
+    // it has references to all nodes that get swaped around. Using the proof
     // tree could make deletion more efficient since we would not have to traverse
     // the pollard to find the node that need to be swapped.
-    blaze_tree.clear();
+    proof_tree.clear();
 
     // Ensure that the number of internal nodes does not change during verification.
     assert(prev_verify_internal_nodes == m_int_nodepool->Size());

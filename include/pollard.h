@@ -35,11 +35,11 @@ private:
                                 bool& recover_left,
                                 bool& recover_right);
 
-    bool CreateProofTree(std::vector<NodePtr<Node>>& blaze,
+    bool CreateProofTree(std::vector<NodePtr<Node>>& proof_tree,
                          std::vector<std::pair<NodePtr<Node>, int>>& recovery,
                          const BatchProof& proof);
 
-    bool VerifyProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>> blaze_tree,
+    bool VerifyProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>> proof_tree,
                          const std::vector<Hash>& target_hashes,
                          const std::vector<Hash>& proof_hashes);
 
