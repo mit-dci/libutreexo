@@ -3,7 +3,6 @@
 #include "crypto/common.h"
 #include "crypto/sha512.h"
 #include "node.h"
-#include "nodepool.h"
 #include "state.h"
 #include <cstring>
 #include <iostream>

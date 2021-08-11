@@ -1,9 +1,9 @@
 #include "../include/pollard.h"
 #include "../include/batchproof.h"
 #include "node.h"
-#include "nodepool.h"
 #include "state.h"
 #include <deque>
+#include <memory>
 #include <string.h>
 #include <tuple>
 
@@ -37,7 +37,11 @@ public:
         m_hash = hash;
     }
 
-    ~InternalNode() {}
+    ~InternalNode()
+    {
+        m_nieces[0] = nullptr;
+        m_nieces[1] = nullptr;
+    }
 
     /* Chop of nieces */
     void Chop();
@@ -52,12 +56,6 @@ public:
      * A node is a deadend if both nieces do not point to another node.
      */
     bool DeadEnd() const;
-
-    void NodePoolDestroy()
-    {
-        m_nieces[0] = nullptr;
-        m_nieces[1] = nullptr;
-    }
 };
 
 class Pollard::Node : public Accumulator::Node
@@ -102,18 +100,15 @@ public:
         m_position = pos;
     }
 
-    ~Node() {}
-
-    const Hash& GetHash() const override;
-    void ReHash() override;
-
-    void NodePoolDestroy() override
+    ~Node()
     {
         m_verification_flag = 0;
         m_node = nullptr;
         m_sibling = nullptr;
-        Accumulator::Node::NodePoolDestroy();
     }
+
+    const Hash& GetHash() const override;
+    void ReHash() override;
 
     bool IsTargetOrAncestor() const { return m_verification_flag & TARGET; }
     bool IsValid() const { return m_verification_flag & VALID; }
@@ -123,16 +118,13 @@ public:
 };
 
 // Pollard
-Pollard::Pollard(uint64_t num_leaves, int max_nodes) : Accumulator(num_leaves)
+Pollard::Pollard(uint64_t num_leaves) : Accumulator(num_leaves)
 {
-    // TODO: find good capacity for both pools.
-    m_int_nodepool = new NodePool<Pollard::InternalNode>(max_nodes);
-    m_nodepool = new NodePool<Pollard::Node>(max_nodes);
-    m_remember = new NodePtr<Pollard::InternalNode>(m_int_nodepool);
+    m_remember = std::make_shared<InternalNode>();
 }
 
-Pollard::Pollard(const std::vector<Hash>& roots, uint64_t num_leaves, int max_nodes)
-    : Pollard(num_leaves, max_nodes)
+Pollard::Pollard(const std::vector<Hash>& roots, uint64_t num_leaves)
+    : Pollard(num_leaves)
 {
     ForestState state(m_num_leaves);
 
@@ -142,22 +134,18 @@ Pollard::Pollard(const std::vector<Hash>& roots, uint64_t num_leaves, int max_no
 
     // Restore roots
     for (int i = 0; i < roots.size(); ++i) {
-        auto int_node = MakeNodePtr(m_int_nodepool, nullptr, nullptr, roots.at(i));
-        m_roots.push_back(MakeNodePtr(m_nodepool,
-                                      int_node, int_node, nullptr,
-                                      m_num_leaves, root_positions.at(i)));
+        auto int_node = MakeNodePtr<InternalNode>(nullptr, nullptr, roots.at(i));
+        m_roots.push_back(MakeNodePtr<Pollard::Node>(int_node, int_node, nullptr,
+                                                     m_num_leaves, root_positions.at(i)));
     }
 }
 
 Pollard::~Pollard()
 {
     m_roots.clear();
-    delete m_remember;
-    delete m_int_nodepool;
-    delete m_nodepool;
 }
 
-std::vector<Accumulator::NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<Accumulator::Node>& rehash_path, bool record_path) const
+std::vector<NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<Accumulator::Node>& rehash_path, bool record_path) const
 {
     ForestState current_state(m_num_leaves);
 
@@ -189,8 +177,8 @@ std::vector<Accumulator::NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t 
         uint8_t lr_sib = current_state.Sibling(lr);
 
         if (record_path) {
-            rehash_path = Accumulator::MakeNodePtr(m_nodepool, node, sibling, rehash_path,
-                                                   m_num_leaves, node_pos);
+            rehash_path = Accumulator::MakeNodePtr<Pollard::Node>(node, sibling, rehash_path,
+                                                                  m_num_leaves, node_pos);
         }
 
         if (!sibling) {
@@ -208,7 +196,7 @@ std::vector<Accumulator::NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t 
     return family;
 }
 
-Accumulator::NodePtr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uint64_t to)
+NodePtr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uint64_t to)
 {
     NodePtr<Accumulator::Node> rehash_path, unused;
     std::vector<NodePtr<InternalNode>> family_from, family_to;
@@ -230,21 +218,21 @@ Accumulator::NodePtr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uin
     return rehash_path;
 }
 
-Accumulator::NodePtr<Accumulator::Node> Pollard::NewLeaf(const Leaf& leaf)
+NodePtr<Accumulator::Node> Pollard::NewLeaf(const Leaf& leaf)
 {
     assert(m_remember);
-    NodePtr<InternalNode> int_node = Accumulator::MakeNodePtr(
-        m_int_nodepool, leaf.second ? *m_remember : nullptr, nullptr, leaf.first);
+    NodePtr<InternalNode> int_node = Accumulator::MakeNodePtr<InternalNode>(
+        leaf.second ? m_remember : nullptr, nullptr, leaf.first);
 
-    NodePtr<Pollard::Node> node = Accumulator::MakeNodePtr(
-        m_nodepool, /*node*/ int_node, /*sibling*/ int_node, /*parent*/ nullptr,
+    NodePtr<Pollard::Node> node = Accumulator::MakeNodePtr<Pollard::Node>(
+        /*node*/ int_node, /*sibling*/ int_node, /*parent*/ nullptr,
         m_num_leaves, m_num_leaves);
     m_roots.push_back(node);
 
     return m_roots.back();
 }
 
-Accumulator::NodePtr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, Hash parent_hash)
+NodePtr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, Hash parent_hash)
 {
     auto right = m_roots.back();
     NodePtr<InternalNode> int_right = INTERNAL_NODE(m_roots.back());
@@ -256,12 +244,11 @@ Accumulator::NodePtr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, 
     std::swap(int_left->m_nieces, int_right->m_nieces);
 
     // create internal node
-    NodePtr<InternalNode> int_node = Accumulator::MakeNodePtr(
-        m_int_nodepool, int_left, int_right, parent_hash);
+    NodePtr<InternalNode> int_node = Accumulator::MakeNodePtr<InternalNode>(int_left, int_right, parent_hash);
     int_node->Prune();
 
-    NodePtr<Pollard::Node> node = Accumulator::MakeNodePtr(
-        m_nodepool, /*node*/ int_node, /*sibling*/ int_node, /*parent*/ nullptr,
+    NodePtr<Pollard::Node> node = Accumulator::MakeNodePtr<Pollard::Node>(
+        /*node*/ int_node, /*sibling*/ int_node, /*parent*/ nullptr,
         m_num_leaves, parent_pos);
     m_roots.push_back(node);
 
@@ -288,8 +275,8 @@ void Pollard::FinalizeRemove(uint64_t next_num_leaves)
 
         // TODO: the forest state of these root nodes should reflect the new state
         // since they survive the remove op.
-        NodePtr<Pollard::Node> node = Accumulator::MakeNodePtr(
-            m_nodepool, family.at(0), family.at(0), nullptr,
+        NodePtr<Pollard::Node> node = Accumulator::MakeNodePtr<Pollard::Node>(
+            family.at(0), family.at(0), nullptr,
             current_state.m_num_leaves, new_pos);
 
         // When truning a node into a root, it's nieces are really it's children
@@ -319,42 +306,42 @@ void Pollard::Prune()
     for (NodePtr<Accumulator::Node>& root : m_roots) {
         INTERNAL_NODE(root)->Chop();
     }
-    assert(m_remember->RefCount() == 1);
+    assert(m_remember.use_count() == 1);
 }
 
-void Pollard::InitChildrenOfComputed(Accumulator::NodePtr<Pollard::Node>& node,
-                                     Accumulator::NodePtr<Pollard::Node>& left_child,
-                                     Accumulator::NodePtr<Pollard::Node>& right_child,
+void Pollard::InitChildrenOfComputed(NodePtr<Pollard::Node>& node,
+                                     NodePtr<Pollard::Node>& left_child,
+                                     NodePtr<Pollard::Node>& right_child,
                                      bool& recover_left,
                                      bool& recover_right)
 {
     if (!node->m_sibling->m_nieces[0]) {
         // The left child does not exist in the pollard. We need to hook it in.
-        node->m_sibling->m_nieces[0] = Accumulator::MakeNodePtr(m_int_nodepool, nullptr, nullptr);
+        node->m_sibling->m_nieces[0] = Accumulator::MakeNodePtr<InternalNode>();
         recover_left = true;
     }
 
     if (!node->m_sibling->m_nieces[1]) {
         // The right child does not exist in the pollard. We need to hook it in.
-        node->m_sibling->m_nieces[1] = Accumulator::MakeNodePtr(m_int_nodepool, nullptr, nullptr);
+        node->m_sibling->m_nieces[1] = Accumulator::MakeNodePtr<InternalNode>();
         recover_right = true;
     }
 
-    left_child = Accumulator::MakeNodePtr(
-        m_nodepool, /*node*/ node->m_sibling->m_nieces[0], /*sibling*/ node->m_sibling->m_nieces[1], /*parent*/ node,
+    left_child = Accumulator::MakeNodePtr<Pollard::Node>(
+        /*node*/ node->m_sibling->m_nieces[0], /*sibling*/ node->m_sibling->m_nieces[1], /*parent*/ node,
         m_num_leaves, ForestState(m_num_leaves).LeftChild(node->m_position));
     if (!recover_left) left_child->m_verification_flag |= Pollard::Node::CACHED;
     if (!recover_right) left_child->m_verification_flag |= Pollard::Node::SIBLING_CACHED;
 
-    right_child = Accumulator::MakeNodePtr(
-        m_nodepool, /*node*/ node->m_sibling->m_nieces[1], /*sibling*/ node->m_sibling->m_nieces[0], /*parent*/ node,
+    right_child = Accumulator::MakeNodePtr<Pollard::Node>(
+        /*node*/ node->m_sibling->m_nieces[1], /*sibling*/ node->m_sibling->m_nieces[0], /*parent*/ node,
         m_num_leaves, ForestState(m_num_leaves).Child(node->m_position, 1));
     if (!recover_left) right_child->m_verification_flag |= Pollard::Node::SIBLING_CACHED;
     if (!recover_right) right_child->m_verification_flag |= Pollard::Node::CACHED;
 }
 
-bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& proof_tree_out,
-                              std::vector<std::pair<Accumulator::NodePtr<Pollard::Node>, int>>& recovery,
+bool Pollard::CreateProofTree(std::vector<NodePtr<Pollard::Node>>& proof_tree_out,
+                              std::vector<std::pair<NodePtr<Pollard::Node>, int>>& recovery,
                               const BatchProof& proof)
 {
     ForestState state(m_num_leaves);
@@ -368,23 +355,23 @@ bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& 
     // We use a std::deque here because we need to be able to append and prepend efficiently
     // and a vector does not offer that.
     // TODO: use std::deque in all of the verification logic?
-    std::deque<Accumulator::NodePtr<Pollard::Node>> proof_tree;
+    std::deque<NodePtr<Pollard::Node>> proof_tree;
 
     int row = static_cast<int>(state.NumRows());
 
     // For each row in the forest, we populate the proof tree.
     while (row >= 0) {
         // For storing the next row of the proof tree.
-        std::deque<Accumulator::NodePtr<Pollard::Node>> next_row;
+        std::deque<NodePtr<Pollard::Node>> next_row;
 
         // Roots are the entry points to the forest from the top down.
         // We attach the root to the current row if there is one on this row.
         if (computed_pos < computed_positions.crend() &&
             state.HasRoot(row) && *computed_pos == state.RootPosition(row)) {
-            Accumulator::NodePtr<Accumulator::Node> root = m_roots.at(state.RootIndex(*computed_pos));
+            NodePtr<Accumulator::Node> root = m_roots.at(state.RootIndex(*computed_pos));
             // TODO: make the roots have the correct positions before this.
             root->m_position = state.RootPosition(row);
-            proof_tree.push_back(root);
+            proof_tree.push_back(std::dynamic_pointer_cast<Pollard::Node>(root));
             proof_tree.back()->m_verification_flag =
                 Pollard::Node::CACHED | Pollard::Node::SIBLING_CACHED;
         }
@@ -420,8 +407,8 @@ bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& 
 
                 // Since this is computed node it must have two children
                 // in the proof tree.
-                Accumulator::NodePtr<Pollard::Node> left_child = nullptr;
-                Accumulator::NodePtr<Pollard::Node> right_child = nullptr;
+                NodePtr<Pollard::Node> left_child = nullptr;
+                NodePtr<Pollard::Node> right_child = nullptr;
                 bool recover_left = false, recover_right = false;
 
                 // Initialise the children of this computed node.
@@ -490,7 +477,7 @@ bool Pollard::CreateProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>>& 
 }
 
 
-bool Pollard::VerifyProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>> proof_tree,
+bool Pollard::VerifyProofTree(std::vector<NodePtr<Pollard::Node>> proof_tree,
                               const std::vector<Hash>& target_hashes,
                               const std::vector<Hash>& proof_hashes)
 {
@@ -508,7 +495,8 @@ bool Pollard::VerifyProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>> p
             // ==================================================
             // This node is a target or the ancestor of a target.
 
-            NodePtr<Pollard::Node> parent = proof_node->Parent();
+            NodePtr<Pollard::Node> parent =
+                std::dynamic_pointer_cast<Pollard::Node>(proof_node->Parent());
             // If this node is valid, so is its parent.
             if (parent && proof_node->IsValid()) parent->MarkAsValid();
 
@@ -586,8 +574,6 @@ bool Pollard::Verify(const BatchProof& proof, const std::vector<Hash>& target_ha
     // If there are no targets to verify we are done.
     if (proof.GetTargets().size() == 0) return true;
 
-    int prev_internal_nodes = m_int_nodepool->Size();
-
     // The proof tree holds the leaves of the partial tree involved in verifying the proof.
     // The leaves know their parents, so the tree can be traversed from the bottom up.
     std::vector<NodePtr<Pollard::Node>> proof_tree;
@@ -603,8 +589,6 @@ bool Pollard::Verify(const BatchProof& proof, const std::vector<Hash>& target_ha
     // This adds new empty nodes to the pollard that will either hold
     // proof hashes or hashes that were computed during verification.
     bool create_ok = CreateProofTree(proof_tree, recovery_tree, proof);
-
-    int prev_verify_internal_nodes = m_int_nodepool->Size();
 
     // Verify the proof tree from bottom to top.
     bool verify_ok = create_ok && VerifyProofTree(proof_tree, target_hashes, proof.GetHashes());
@@ -640,9 +624,6 @@ bool Pollard::Verify(const BatchProof& proof, const std::vector<Hash>& target_ha
         recovery_tree.clear();
         proof_tree.clear();
 
-        // Ensure that the number of allocated internal nodes matches the
-        // number of nodes before the verification.
-        assert(prev_internal_nodes == m_int_nodepool->Size());
         return false;
     }
 
@@ -652,8 +633,6 @@ bool Pollard::Verify(const BatchProof& proof, const std::vector<Hash>& target_ha
     // the pollard to find the node that need to be swapped.
     proof_tree.clear();
 
-    // Ensure that the number of internal nodes does not change during verification.
-    assert(prev_verify_internal_nodes == m_int_nodepool->Size());
     // Proof verification passed.
     return true;
 }

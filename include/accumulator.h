@@ -2,14 +2,17 @@
 #define UTREEXO_ACCUMULATOR_H
 
 #include <array>
+#include <cassert>
 #include <stdint.h>
 #include <utility>
 #include <vector>
-#include <cassert>
+#include <memory>
 
 namespace utreexo {
 using Hash = std::array<uint8_t, 32>;
 using Leaf = std::pair<Hash, bool>;
+template <typename T>
+using NodePtr = std::shared_ptr<T>;
 
 class BatchProof;
 
@@ -59,11 +62,6 @@ protected:
      */
     class Node;
 
-    template <class T>
-    class NodePool;
-    template <class T>
-    class NodePtr;
-
     // The number of leaves in the forest.
     uint64_t m_num_leaves;
 
@@ -97,14 +95,13 @@ protected:
     static void ParentHash(Hash& parent, const Hash& left, const Hash& right);
 
     template <class T, typename... Args>
-    static NodePtr<T> MakeNodePtr(NodePool<T>* pool, const Args&... args)
+    static NodePtr<T> MakeNodePtr(const Args&... args)
     {
-        NodePtr<T> node(pool);
+        NodePtr<T> node = std::make_shared<T>(args...);
         if (!node) {
-            throw std::runtime_error("Accumulator::MakeNodePtr node pool is out of nodes");
+            throw std::runtime_error("Accumulator::MakeNodePtr failed to allocate node.");
         }
 
-        *node = T(args...);
         return node;
     }
 };

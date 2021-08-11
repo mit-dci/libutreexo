@@ -12,10 +12,7 @@ private:
     /* Pollards implementation of Accumulator::Node */
     class Node;
 
-    NodePool<InternalNode>* m_int_nodepool;
-    NodePool<Pollard::Node>* m_nodepool;
-
-    NodePtr<Pollard::InternalNode>* m_remember;
+    NodePtr<Pollard::InternalNode> m_remember;
 
     /*
      * Return the node and its sibling.
@@ -29,9 +26,9 @@ private:
     NodePtr<Accumulator::Node> NewLeaf(const Leaf& hash) override;
     void FinalizeRemove(uint64_t next_num_leaves) override;
 
-    void InitChildrenOfComputed(Accumulator::NodePtr<Pollard::Node>& node,
-                                Accumulator::NodePtr<Pollard::Node>& left_child,
-                                Accumulator::NodePtr<Pollard::Node>& right_child,
+    void InitChildrenOfComputed(NodePtr<Pollard::Node>& node,
+                                NodePtr<Pollard::Node>& left_child,
+                                NodePtr<Pollard::Node>& right_child,
                                 bool& recover_left,
                                 bool& recover_right);
 
@@ -39,13 +36,13 @@ private:
                          std::vector<std::pair<NodePtr<Node>, int>>& recovery,
                          const BatchProof& proof);
 
-    bool VerifyProofTree(std::vector<Accumulator::NodePtr<Pollard::Node>> proof_tree,
+    bool VerifyProofTree(std::vector<NodePtr<Pollard::Node>> proof_tree,
                          const std::vector<Hash>& target_hashes,
                          const std::vector<Hash>& proof_hashes);
 
 public:
-    Pollard(const std::vector<Hash>& roots, uint64_t num_leaves, int max_nodes);
-    Pollard(uint64_t num_leaves, int max_nodes);
+    Pollard(const std::vector<Hash>& roots, uint64_t num_leaves);
+    Pollard(uint64_t num_leaves);
     ~Pollard();
 
     bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const override;

@@ -1,5 +1,6 @@
 #include "../include/ram_forest.h"
 #include "../include/batchproof.h"
+#include "check.h"
 #include "crypto/common.h"
 #include "node.h"
 #include "state.h"
@@ -66,7 +67,7 @@ void RamForest::Node::ReHash()
     rowData[m_position - offset] = m_hash;
 }
 
-Accumulator::NodePtr<Accumulator::Node> RamForest::Node::Parent() const
+NodePtr<Accumulator::Node> RamForest::Node::Parent() const
 {
     ForestState state(m_num_leaves);
     uint64_t parent_pos = state.Parent(this->m_position);
@@ -81,24 +82,21 @@ Accumulator::NodePtr<Accumulator::Node> RamForest::Node::Parent() const
     }
 
     // Return the parent of this node.
-    return Accumulator::MakeNodePtr(
-        m_forest->m_nodepool, m_forest, m_num_leaves, parent_pos);
+    return Accumulator::MakeNodePtr<RamForest::Node>(m_forest, m_num_leaves, parent_pos);
 }
 
 // RamForest
 
-RamForest::RamForest(uint64_t num_leaves, int max_nodes) : Accumulator(num_leaves)
+RamForest::RamForest(uint64_t num_leaves) : Accumulator(num_leaves)
 {
     this->m_data = std::vector<std::vector<Hash>>();
     this->m_data.push_back(std::vector<Hash>());
-    m_nodepool = new NodePool<Node>(max_nodes);
 }
 
-RamForest::RamForest(const std::string& file, int max_nodes) : Accumulator(0)
+RamForest::RamForest(const std::string& file) : Accumulator(0)
 {
     this->m_data = std::vector<std::vector<Hash>>();
     this->m_data.push_back(std::vector<Hash>());
-    m_nodepool = new NodePool<Node>(max_nodes);
     m_file_path = file;
 
     if (static_cast<bool>(std::fstream(file))) {
@@ -220,7 +218,7 @@ void RamForest::SwapRange(uint64_t from, uint64_t to, uint64_t range)
     }
 }
 
-Accumulator::NodePtr<Accumulator::Node> RamForest::SwapSubTrees(uint64_t from, uint64_t to)
+NodePtr<Accumulator::Node> RamForest::SwapSubTrees(uint64_t from, uint64_t to)
 {
     ForestState current_state(m_num_leaves);
     // posA and posB are on the same row
@@ -236,11 +234,10 @@ Accumulator::NodePtr<Accumulator::Node> RamForest::SwapSubTrees(uint64_t from, u
         to = current_state.Parent(to);
     }
 
-    return Accumulator::MakeNodePtr(
-        m_nodepool, this, m_num_leaves, to);
+    return Accumulator::MakeNodePtr<RamForest::Node>(this, m_num_leaves, to);
 }
 
-Accumulator::NodePtr<Accumulator::Node> RamForest::MergeRoot(uint64_t parent_pos, Hash parent_hash)
+NodePtr<Accumulator::Node> RamForest::MergeRoot(uint64_t parent_pos, Hash parent_hash)
 {
     assert(m_roots.size() >= 2);
 
@@ -256,20 +253,18 @@ Accumulator::NodePtr<Accumulator::Node> RamForest::MergeRoot(uint64_t parent_pos
     uint64_t offset = state.RowOffset(parent_pos);
     m_data[row][parent_pos - offset] = parent_hash;
 
-    NodePtr<RamForest::Node> node = Accumulator::MakeNodePtr(
-        m_nodepool, this, m_data.at(row).back(), m_num_leaves, parent_pos);
+    NodePtr<RamForest::Node> node = Accumulator::MakeNodePtr<RamForest::Node>(this, m_data.at(row).back(), m_num_leaves, parent_pos);
     m_roots.push_back(node);
 
     return m_roots.back();
 }
 
-Accumulator::NodePtr<Accumulator::Node> RamForest::NewLeaf(const Leaf& leaf)
+NodePtr<Accumulator::Node> RamForest::NewLeaf(const Leaf& leaf)
 {
     // append new hash on row 0 (as a leaf)
     this->m_data[0][m_num_leaves] = leaf.first;
 
-    NodePtr<RamForest::Node> new_root = Accumulator::MakeNodePtr(
-        m_nodepool, this, leaf.first, m_num_leaves, m_num_leaves);
+    NodePtr<RamForest::Node> new_root = Accumulator::MakeNodePtr<RamForest::Node>(this, leaf.first, m_num_leaves, m_num_leaves);
     m_roots.push_back(new_root);
 
     m_posmap[leaf.first] = new_root->m_position;
@@ -298,8 +293,7 @@ void RamForest::FinalizeRemove(uint64_t next_num_leaves)
     new_roots.reserve(new_positions.size());
 
     for (uint64_t new_pos : new_positions) {
-        NodePtr<RamForest::Node> new_root = Accumulator::MakeNodePtr(
-            m_nodepool, this, next_num_leaves, new_pos);
+        NodePtr<RamForest::Node> new_root = Accumulator::MakeNodePtr<RamForest::Node>(this, next_num_leaves, new_pos);
         new_root->m_hash = Read(new_pos);
         new_roots.push_back(new_root);
     }
@@ -398,7 +392,7 @@ void RamForest::RestoreRoots()
     m_roots.clear();
     std::vector<uint64_t> root_positions = ForestState(m_num_leaves).RootPositions();
     for (const uint64_t& pos : root_positions) {
-        m_roots.push_back(Accumulator::MakeNodePtr(m_nodepool, this, Read(pos), m_num_leaves, pos));
+        m_roots.push_back(Accumulator::MakeNodePtr<RamForest::Node>(this, Read(pos), m_num_leaves, pos));
     }
 }
 
@@ -486,18 +480,19 @@ bool RamForest::Undo(const UndoBatch& undo)
         // Dont add the same parent to the next row dirt.
         if (dirt.size() != 0 && dirt.back()->m_position == prev_state.Parent(pos)) continue;
 
-        dirt.push_back(Accumulator::MakeNodePtr(m_nodepool,
-                                                this, m_num_leaves, parent_pos));
+        dirt.push_back(Accumulator::MakeNodePtr<RamForest::Node>(this, m_num_leaves, parent_pos));
     }
 
     for (uint8_t r = 1; r <= prev_state.NumRows(); ++r) {
         m_data[r].resize(m_num_leaves >> r);
         std::vector<NodePtr<RamForest::Node>> next_dirt;
 
-        for (Accumulator::NodePtr<RamForest::Node> dirt_node : dirt) {
+        for (NodePtr<RamForest::Node> dirt_node : dirt) {
             dirt_node->ReHash();
             auto parent = dirt_node->Parent();
-            if (parent && (next_dirt.size() == 0 || next_dirt.back()->m_position != parent->m_position)) next_dirt.push_back(parent);
+            if (parent && (next_dirt.size() == 0 || next_dirt.back()->m_position != parent->m_position)) {
+                next_dirt.push_back(std::dynamic_pointer_cast<RamForest::Node>(parent));
+            }
         }
         dirt = next_dirt;
     }

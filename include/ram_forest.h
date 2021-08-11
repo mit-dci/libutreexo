@@ -28,9 +28,6 @@ private:
     // RamForests implementation of Accumulator::Node.
     class Node;
 
-    // NodePool for RamForest::Nodes
-    NodePool<Node>* m_nodepool;
-
     // Path to the file in which the forest is stored.
     std::string m_file_path;
     std::fstream m_file;
@@ -58,8 +55,8 @@ private:
     bool BuildUndoBatch(UndoBatch& undo, uint64_t num_adds, const std::vector<uint64_t>& targets) const;
 
 public:
-    RamForest(uint64_t num_leaves, int max_nodes);
-    RamForest(const std::string& file, int max_nodes);
+    RamForest(uint64_t num_leaves);
+    RamForest(const std::string& file);
     ~RamForest();
 
     bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const override;

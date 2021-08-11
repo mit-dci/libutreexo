@@ -1,5 +1,4 @@
 #include "../../include/utreexo.h"
-#include "../nodepool.h"
 #include <boost/test/unit_test.hpp>
 #include <chrono>
 #include <cstring>
@@ -91,8 +90,8 @@ utreexo::UndoBatch unused_undo;
 // Simple test that adds and deletes a bunch of elements from both a forest and pollard.
 BOOST_AUTO_TEST_CASE(simple)
 {
-    Pollard pruned(0, 64);
-    RamForest full(0, 64);
+    Pollard pruned(0);
+    RamForest full(0);
 
     // 1. Add 64 elements
     std::vector<Leaf> leaves;
@@ -159,8 +158,8 @@ BOOST_AUTO_TEST_CASE(ramforest_disk)
     BatchProof proof;
     std::vector<Leaf> leaves;
     {
-        RamForest full("./test_forest", 64);
-        Pollard pollard(0, 64);
+        RamForest full("./test_forest");
+        Pollard pollard(0);
 
         CreateTestLeaves(leaves, 32);
 
@@ -170,7 +169,7 @@ BOOST_AUTO_TEST_CASE(ramforest_disk)
         BOOST_CHECK(pollard.Verify(proof, {leaves[0].first}));
     }
 
-    RamForest full("./test_forest", 64);
+    RamForest full("./test_forest");
     BatchProof copy;
     BOOST_CHECK(full.Prove(copy, {leaves[0].first}));
     BOOST_CHECK(copy == proof);
@@ -179,7 +178,7 @@ BOOST_AUTO_TEST_CASE(ramforest_disk)
 
 BOOST_AUTO_TEST_CASE(batchproof_serialization)
 {
-    RamForest full(0, 64);
+    RamForest full(0);
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 32);
@@ -198,8 +197,8 @@ BOOST_AUTO_TEST_CASE(batchproof_serialization)
 
 BOOST_AUTO_TEST_CASE(singular_leaf_prove)
 {
-    Pollard pruned(0, 64);
-    RamForest full(0, 64);
+    Pollard pruned(0);
+    RamForest full(0);
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 8);
@@ -221,8 +220,8 @@ BOOST_AUTO_TEST_CASE(singular_leaf_prove)
 
 BOOST_AUTO_TEST_CASE(simple_modified_proof)
 {
-    Pollard pruned(0, 64);
-    RamForest full(0, 64);
+    Pollard pruned(0);
+    RamForest full(0);
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 8);
@@ -245,8 +244,8 @@ BOOST_AUTO_TEST_CASE(simple_modified_proof)
 
 BOOST_AUTO_TEST_CASE(simple_cached_proof)
 {
-    Pollard pruned(0, 64);
-    RamForest full(0, 64);
+    Pollard pruned(0);
+    RamForest full(0);
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 8);
@@ -277,8 +276,8 @@ BOOST_AUTO_TEST_CASE(simple_cached_proof)
 
 BOOST_AUTO_TEST_CASE(simple_batch_proof)
 {
-    Pollard pruned(0, 64);
-    RamForest full(0, 64);
+    Pollard pruned(0);
+    RamForest full(0);
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 15);
@@ -296,8 +295,8 @@ BOOST_AUTO_TEST_CASE(simple_batch_proof)
 
 BOOST_AUTO_TEST_CASE(simple_batchproof_verify_and_delete)
 {
-    RamForest full(0, 128);
-    Pollard pruned(0, 128);
+    RamForest full(0);
+    Pollard pruned(0);
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 15);
@@ -333,8 +332,8 @@ BOOST_AUTO_TEST_CASE(simple_batchproof_verify_and_delete)
 
 BOOST_AUTO_TEST_CASE(hash_to_known_invalid_proof)
 {
-    RamForest full(0, 128);
-    Pollard pruned(0, 128);
+    RamForest full(0);
+    Pollard pruned(0);
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 15);
@@ -365,8 +364,8 @@ BOOST_AUTO_TEST_CASE(hash_to_known_invalid_proof)
 
 BOOST_AUTO_TEST_CASE(simple_blockchain)
 {
-    RamForest full(0, 1024);
-    Pollard pruned(0, 1024);
+    RamForest full(0);
+    Pollard pruned(0);
     int num_blocks = 1000;
     int num_max_adds = 128;
     int num_max_dels = 128;
@@ -444,8 +443,8 @@ BOOST_AUTO_TEST_CASE(simple_blockchain)
 
 BOOST_AUTO_TEST_CASE(pollard_restore)
 {
-    RamForest full(0, 128);
-    Pollard pruned(0, 128);
+    RamForest full(0);
+    Pollard pruned(0);
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 15);
@@ -461,14 +460,14 @@ BOOST_AUTO_TEST_CASE(pollard_restore)
     std::vector<Hash> roots;
     pruned.Roots(roots);
 
-    Pollard restored(roots, 15, 128);
+    Pollard restored(roots, 15);
     BOOST_CHECK(restored.Verify(proof, leaf_hashes));
 }
 
 BOOST_AUTO_TEST_CASE(pollard_remember)
 {
-    RamForest full(0, 128);
-    Pollard pruned(0, 128);
+    RamForest full(0);
+    Pollard pruned(0);
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 8);
