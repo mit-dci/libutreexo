@@ -465,4 +465,41 @@ BOOST_AUTO_TEST_CASE(pollard_restore)
     BOOST_CHECK(restored.Verify(proof, leaf_hashes));
 }
 
+BOOST_AUTO_TEST_CASE(pollard_remember)
+{
+    RamForest full(0, 128);
+    Pollard pruned(0, 128);
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 8);
+
+    leaves[1].second = true;
+    leaves[2].second = true;
+    leaves[3].second = true;
+
+    BOOST_CHECK(full.Modify(unused_undo, leaves, {}));
+    BOOST_CHECK(pruned.Modify(leaves, {}));
+
+    BatchProof proof02;
+    BOOST_CHECK(full.Prove(proof02, {leaves[0].first, leaves[2].first}));
+
+    BOOST_CHECK(pruned.Verify(BatchProof({0, 2}, {leaves[1].first}), {leaves[0].first, leaves[2].first}));
+    BOOST_CHECK(pruned.Verify(proof02, {leaves[0].first, leaves[2].first}));
+
+    BOOST_CHECK(pruned.Modify({}, proof02.GetSortedTargets()));
+    BOOST_CHECK(full.Modify(unused_undo, {}, proof02.GetSortedTargets()));
+
+    // After the removal of 0 and 2, 3 should still be cached.
+    BatchProof proof3;
+    BOOST_CHECK(full.Prove(proof3, {leaves[3].first}));
+    BOOST_CHECK(pruned.Modify({}, proof3.GetSortedTargets()));
+    BOOST_CHECK(full.Modify(unused_undo, {}, proof3.GetSortedTargets()));
+
+    // Check that the roots of the forest and the pollard are the same.
+    std::vector<Hash> full_roots, pruned_roots;
+    full.Roots(full_roots);
+    pruned.Roots(pruned_roots);
+    BOOST_CHECK(full_roots == pruned_roots);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
