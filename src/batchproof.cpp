@@ -78,6 +78,8 @@ bool BatchProof::Unserialize(const std::vector<uint8_t>& bytes)
         data_offset += 4;
     }
 
+    std::sort(m_sorted_targets.begin(), m_sorted_targets.end());
+
     for (uint32_t i = 0; i < num_hashes; ++i) {
         Hash hash;
         std::memcpy(hash.data(), bytes.data() + data_offset, 32);
