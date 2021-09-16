@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 #include <memory>
+#include <stdexcept>
 
 namespace utreexo {
 using Hash = std::array<uint8_t, 32>;
