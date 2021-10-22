@@ -60,9 +60,9 @@ Hash HashFromStr(const std::string& hex)
     int digits = 64;
 
     for (int i = 31; i >= 0;) {
-        h[i] = p_util_hexdigit[hex[--digits]];
+        h[i] = p_util_hexdigit[(uint8_t)hex[--digits]];
         if (digits > 0) {
-            h[i] |= p_util_hexdigit[hex[--digits]] << 4;
+            h[i] |= p_util_hexdigit[(uint8_t)hex[--digits]] << 4;
             i--;
         }
     }
@@ -368,7 +368,6 @@ BOOST_AUTO_TEST_CASE(simple_blockchain)
     Pollard pruned(0);
     int num_blocks = 1000;
     int num_max_adds = 128;
-    int num_max_dels = 128;
     int unique_hash = 0;
 
     std::default_random_engine generator;

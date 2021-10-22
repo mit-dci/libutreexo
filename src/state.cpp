@@ -420,7 +420,7 @@ std::vector<ForestState::Swap> ForestState::UndoTransform(const std::vector<uint
     std::vector<ForestState::Swap> undo_swaps;
     auto prev_swaps = Transform(targets);
 
-    for (int r = 0; r < prev_swaps.size(); ++r) {
+    for (size_t r = 0; r < prev_swaps.size(); ++r) {
         auto row = prev_swaps[r];
         for (const ForestState::Swap& swap : row) {
             if (swap.m_from == swap.m_to) continue;
