@@ -16,7 +16,14 @@ FUZZ(forest_state)
 
     FUZZ_CONSUME(uint16_t, num_targets)
     FUZZ_CONSUME_VEC(uint64_t, targets, num_targets);
-    state.ProofPositions(targets);
+
     std::sort(targets.begin(), targets.end());
     state.ProofPositions(targets);
+    state.Transform(targets);
+    state.CheckTargetsSanity(targets);
+    state.UndoTransform(targets);
+
+    for (uint64_t target : targets) {
+        state.Path(target);
+    }
 }
