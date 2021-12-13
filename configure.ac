@@ -37,6 +37,12 @@ AC_ARG_ENABLE([fuzz],
     [enable_fuzz=$enableval],
     [enable_fuzz=no])
 
+AC_ARG_ENABLE([fuzz-cov],
+    AS_HELP_STRING([--enable-fuzz-cov],
+    [enable fuzz coverage reporting.]),
+    [enable_fuzz_cov=$enableval],
+    [enable_fuzz_cov=no])
+
 AX_CHECK_COMPILE_FLAG([-Werror],[CXXFLAG_WERROR="-Werror"],[CXXFLAG_WERROR=""])
 
 AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory], [nodefault])
@@ -59,6 +65,16 @@ dnl it would break GCC's #include_next.
 AC_DEFUN([SUPPRESS_WARNINGS],
          [$(echo $1 |${SED} -E -e 's/(^| )-I/\1-isystem /g' -e 's;-isystem /usr/include([/ ]|$);-I/usr/include\1;g')])
 
+if test x$enable_fuzz = xyes; then
+  use_tests=no
+  CXXFLAGS="$CXXFLAGS -fsanitize=fuzzer,address,undefined"
+fi
+
+if test x$enable_fuzz_cov = xyes; then
+  use_tests=no
+  CXXFLAGS="$CXXFLAGS -fprofile-instr-generate -fcoverage-mapping"
+fi
+
 if test "x$enable_debug" = xyes; then
   dnl Clear default -g -O2 flags
   ## TODO: dont reset CXXFLAGS when they are already set.
@@ -78,11 +94,6 @@ if test "x$enable_debug" = xyes; then
   AX_CHECK_PREPROC_FLAG([-DDEBUG_LOCKORDER],[[DEBUG_CPPFLAGS="$DEBUG_CPPFLAGS -DDEBUG_LOCKORDER"]],,[[$CXXFLAG_WERROR]])
   AX_CHECK_PREPROC_FLAG([-DABORT_ON_FAILED_ASSUME],[[DEBUG_CPPFLAGS="$DEBUG_CPPFLAGS -DABORT_ON_FAILED_ASSUME"]],,[[$CXXFLAG_WERROR]])
   AX_CHECK_COMPILE_FLAG([-ftrapv],[DEBUG_CXXFLAGS="$DEBUG_CXXFLAGS -ftrapv"],,[[$CXXFLAG_WERROR]])
-fi
-
-if test x$enable_fuzz = xyes; then
-  use_tests=no
-  DEBUG_CXXFLAGS="-g -fsanitize=fuzzer,address,undefined"
 fi
 
 ## Check for boost test framework if test are enabled.
@@ -107,9 +118,9 @@ if test x$use_tests = xyes; then
   TEMP_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $BOOST_CPPFLAGS"
   AC_LINK_IFELSE([AC_LANG_SOURCE([
-       #define BOOST_TEST_DYN_LINK
-       #define BOOST_TEST_MAIN
-        #include <boost/test/unit_test.hpp>
+#define BOOST_TEST_DYN_LINK
+#define BOOST_TEST_MAIN
+#include <boost/test/unit_test.hpp>
        ])],
     [AC_MSG_RESULT(yes)]
     [TEST_DEFINES="$TEST_DEFINES -DBOOST_TEST_DYN_LINK"],
