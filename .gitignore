@@ -14,8 +14,6 @@ compile_commands.json
 .dirstamp
 make
 test-verify
-fuzz
- 
 
 # autoreconf
 Makefile
