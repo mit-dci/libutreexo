@@ -13,6 +13,8 @@ compile_commands.json
 .cache
 .dirstamp
 make
+test-verify
+fuzz
  
 
 # autoreconf

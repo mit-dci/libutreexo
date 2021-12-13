@@ -36,3 +36,12 @@ test_verify_CPPFLAGS = -I$(srcdir)/src $(AM_CPPFLAGS) $(VERIFY_DEFINES)
 test_verify_LDADD = $(LIBUTREEXO_VERIFY)
 test_verify_LDFLAGS = $(AM_LDFLAGS) -static
 
+if ENABLE_FUZZ
+noinst_PROGRAMS = fuzz
+TESTS = fuzz
+endif
+
+fuzz_SOURCES = $(UTREEXO_FUZZ_SOURCES_INT) 
+fuzz_CPPFLAGS = -I$(srcdir)/src -I$(srcdir)/fuzz $(AM_CPPFLAGS) $(RELEASE_DEFINES)
+fuzz_LDADD = $(LIBUTREEXO)
+fuzz_LDFLAGS = $(AM_LDFLAGS) -static

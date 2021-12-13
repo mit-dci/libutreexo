@@ -31,9 +31,15 @@ AC_ARG_ENABLE([debug],
     [enable_debug=$enableval],
     [enable_debug=no])
 
+AC_ARG_ENABLE([fuzz],
+    AS_HELP_STRING([--enable-fuzz],
+    [build for fuzzing (default no). enabling this will disable all other targets.]),
+    [enable_fuzz=$enableval],
+    [enable_fuzz=no])
+
 AX_CHECK_COMPILE_FLAG([-Werror],[CXXFLAG_WERROR="-Werror"],[CXXFLAG_WERROR=""])
 
-AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory], [nodefault])
+AX_CXX_COMPILE_STDCXX([17], [noext], [mandatory], [nodefault])
 
 AX_CHECK_COMPILE_FLAG([-Wall],[WARN_CXXFLAGS="$WARN_CXXFLAGS -Wall"],,[[$CXXFLAG_WERROR]])
 ## Some compilers (gcc) ignore unknown -Wno-* options, but warn about all
@@ -72,6 +78,11 @@ if test "x$enable_debug" = xyes; then
   AX_CHECK_PREPROC_FLAG([-DDEBUG_LOCKORDER],[[DEBUG_CPPFLAGS="$DEBUG_CPPFLAGS -DDEBUG_LOCKORDER"]],,[[$CXXFLAG_WERROR]])
   AX_CHECK_PREPROC_FLAG([-DABORT_ON_FAILED_ASSUME],[[DEBUG_CPPFLAGS="$DEBUG_CPPFLAGS -DABORT_ON_FAILED_ASSUME"]],,[[$CXXFLAG_WERROR]])
   AX_CHECK_COMPILE_FLAG([-ftrapv],[DEBUG_CXXFLAGS="$DEBUG_CXXFLAGS -ftrapv"],,[[$CXXFLAG_WERROR]])
+fi
+
+if test x$enable_fuzz = xyes; then
+  use_tests=no
+  DEBUG_CXXFLAGS="-g -fsanitize=fuzzer,address,undefined"
 fi
 
 ## Check for boost test framework if test are enabled.
@@ -141,5 +152,6 @@ AC_SUBST(NOWARN_CXXFLAGS)
 AC_SUBST(VERIFY_DEFINES)
 AC_SUBST(RELEASE_DEFINES)
 AM_CONDITIONAL([USE_TESTS], [test x"$use_tests" != x"no"])
+AM_CONDITIONAL([ENABLE_FUZZ], [test x"$enable_fuzz" != x"no"])
 AC_OUTPUT
 
