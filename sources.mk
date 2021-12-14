@@ -31,3 +31,4 @@ UTREEXO_TEST_SOURCES_INT += %reldir%/src/test/state_tests.cpp
 UTREEXO_FUZZ_SOURCES_INT =
 UTREEXO_FUZZ_SOURCES_INT += %reldir%/src/fuzz/fuzz.cpp
 UTREEXO_FUZZ_SOURCES_INT += %reldir%/src/fuzz/forest_state.cpp
+UTREEXO_FUZZ_SOURCES_INT += %reldir%/src/fuzz/batchproof.cpp
