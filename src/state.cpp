@@ -58,7 +58,7 @@ uint64_t _maxNodes(uint64_t num_leaves);
 
 uint64_t ForestState::Parent(uint64_t pos) const
 {
-    return (pos >> 1) | (1 << this->NumRows());
+    return (pos >> 1ULL) | (1ULL << this->NumRows());
 }
 
 uint64_t ForestState::Ancestor(uint64_t pos, uint8_t rise) const
@@ -131,9 +131,9 @@ std::tuple<uint8_t, uint8_t, uint64_t> ForestState::Path(uint64_t pos) const
     // skipping trees that don't exist.
 
     uint8_t biggerTrees = 0;
-    for (; ((pos << row) & ((2 << rows) - 1)) >= ((1 << rows) & this->m_num_leaves);
+    for (; ((pos << row) & ((2ULL << rows) - 1)) >= ((1ULL << rows) & this->m_num_leaves);
          --rows) {
-        uint64_t treeSize = (1 << rows) & this->m_num_leaves;
+        uint64_t treeSize = (1ULL << rows) & this->m_num_leaves;
         if (treeSize != 0) {
             pos -= treeSize;
             ++biggerTrees;
@@ -263,7 +263,7 @@ bool ForestState::HasRoot(uint8_t row) const
 
 uint64_t _rootPosition(uint8_t row, uint64_t num_leaves, uint8_t rows)
 {
-    uint64_t mask = (2 << rows) - 1;
+    uint64_t mask = (2ULL << rows) - 1;
     uint64_t before = num_leaves & (mask << (row + 1));
     uint64_t shifted = (before >> row) | (mask << (rows + 1 - row));
     return shifted & mask;
@@ -338,7 +338,7 @@ uint8_t _numRows(uint64_t num_leaves)
     // log of 2 is the tree depth/height
     // if n == 0, there will be 64 traling zeros but actually no tree rows.
     // we clear the 6th bit to return 0 in that case.
-    return uint8_t(trailingZeros(n) & ~int(64));
+    return uint8_t(trailingZeros(n) & ~64ULL);
 }
 
 
@@ -349,7 +349,7 @@ uint8_t ForestState::NumRows() const
 
 uint8_t ForestState::DetectRow(uint64_t pos) const
 {
-    uint64_t marker = 1 << this->NumRows();
+    uint64_t marker = 1ULL << this->NumRows();
     uint8_t row = 0;
 
     for (; (pos & marker) != 0; ++row) {
@@ -433,7 +433,7 @@ std::vector<ForestState::Swap> ForestState::UndoTransform(const std::vector<uint
 
 // misc
 
-uint64_t _maxNodes(uint64_t num_leaves) { return (2 << _numRows(num_leaves)) - 1; }
+uint64_t _maxNodes(uint64_t num_leaves) { return (2ULL << _numRows(num_leaves)) - 1; }
 uint64_t ForestState::MaxNodes() const { return _maxNodes(this->m_num_leaves); }
 
 
@@ -635,6 +635,6 @@ ForestState::Swap ForestState::Swap::ToLeaves(ForestState state) const
     return ForestState::Swap(
         state.LeftDescendant(m_from, row),
         state.LeftDescendant(m_to, row),
-        static_cast<uint64_t>(1 << static_cast<uint64_t>(row)));
+        static_cast<uint64_t>(1ULL << static_cast<uint64_t>(row)));
 }
 }; // namespace utreexo
