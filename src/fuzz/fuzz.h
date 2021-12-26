@@ -42,5 +42,9 @@ void RegisterFuzzTarget(std::string_view name, FuzzFunc func);
         name.push_back(j);                     \
     }
 
+#define FUZZ_CONSUME_BOOL(name)       \
+    FUZZ_CONSUME(uint8_t, name_uint8) \
+    bool name = 1 & name_uint8;
+
 #endif
 
