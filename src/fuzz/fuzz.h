@@ -20,9 +20,11 @@ void RegisterFuzzTarget(std::string_view name, FuzzFunc func);
     } const static g_##name##_register;                    \
     void name##_fuzz_target(const uint8_t* data, size_t size)
 
-#define FUZZ_CONSUME_UNCHECKED(type, name) \
-    type name = *((type*)data);            \
-    size -= sizeof(type);
+#define FUZZ_CONSUME_UNCHECKED(type, name)  \
+    type name;                              \
+    std::memcpy(&name, data, sizeof(type)); \
+    size -= sizeof(type);                   \
+    data += sizeof(type);
 
 #define FUZZ_CONSUME(type, name) \
     if (sizeof(type) > size) {   \
