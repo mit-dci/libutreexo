@@ -67,7 +67,9 @@ AC_DEFUN([SUPPRESS_WARNINGS],
 
 if test x$enable_fuzz = xyes; then
   use_tests=no
-  CXXFLAGS="$CXXFLAGS -fsanitize=fuzzer,address,undefined"
+  ## TODO make these configurable
+  SANITIZER_LDFLAGS="-fsanitize=fuzzer,address,undefined"
+  SANITIZER_CXXFLAGS="-fsanitize=fuzzer,address,undefined"
 fi
 
 if test x$enable_fuzz_cov = xyes; then
@@ -162,6 +164,8 @@ AC_SUBST(WARN_CXXFLAGS)
 AC_SUBST(NOWARN_CXXFLAGS)
 AC_SUBST(VERIFY_DEFINES)
 AC_SUBST(RELEASE_DEFINES)
+AC_SUBST(SANITIZER_LDFLAGS)
+AC_SUBST(SANITIZER_CXXFLAGS)
 AM_CONDITIONAL([USE_TESTS], [test x"$use_tests" != x"no"])
 AM_CONDITIONAL([ENABLE_FUZZ], [test x"$enable_fuzz" != x"no"])
 AC_OUTPUT

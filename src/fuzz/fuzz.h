@@ -4,6 +4,7 @@
 #include <functional>
 #include <map>
 #include <string_view>
+#include <cstring>
 
 using FuzzFunc = std::function<void(const uint8_t*, size_t size)>;
 
