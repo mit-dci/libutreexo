@@ -23,7 +23,8 @@ FUZZ(forest_state)
     state.CheckTargetsSanity(targets);
     state.UndoTransform(targets);
 
-    for (uint64_t target : targets) {
+    // TODO: figure out why this makes the target so much slower
+    /*for (uint64_t target : targets) {
         state.Path(target);
-    }
+    }*/
 }
