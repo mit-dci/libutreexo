@@ -62,7 +62,7 @@ bool BatchProof::Unserialize(const std::vector<uint8_t>& bytes)
     uint32_t num_hashes = ReadBE32(bytes.data() + data_offset);
     data_offset += 4;
 
-    if (bytes.size() != 8 + num_targets * 4 + num_hashes * 32) {
+    if (bytes.size() != 8ULL + num_targets * 4ULL + num_hashes * 32ULL) {
         return false;
     }
 
