@@ -133,7 +133,7 @@ Pollard::Pollard(const std::vector<Hash>& roots, uint64_t num_leaves)
     assert(root_positions.size() == roots.size());
 
     // Restore roots
-    for (int i = 0; i < roots.size(); ++i) {
+    for (size_t i = 0; i < roots.size(); ++i) {
         auto int_node = MakeNodePtr<InternalNode>(nullptr, nullptr, roots.at(i));
         m_roots.push_back(MakeNodePtr<Pollard::Node>(int_node, int_node, nullptr,
                                                      m_num_leaves, root_positions.at(i)));

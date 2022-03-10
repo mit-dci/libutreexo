@@ -56,7 +56,7 @@ bool BatchProof::Unserialize(const std::vector<uint8_t>& bytes)
         return false;
     }
 
-    int data_offset = 0;
+    uint32_t data_offset = 0;
     uint32_t num_targets = ReadBE32(bytes.data());
     data_offset += 4;
     uint32_t num_hashes = ReadBE32(bytes.data() + data_offset);
@@ -162,7 +162,7 @@ bool UndoBatch::Unserialize(const std::vector<uint8_t>& bytes)
         return false;
     }
 
-    int data_offset = 0;
+    uint8_t data_offset = 0;
     m_num_additions = static_cast<uint64_t>(ReadBE32(bytes.data()));
     data_offset += 4;
     uint32_t num_targets = ReadBE32(bytes.data() + data_offset);

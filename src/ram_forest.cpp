@@ -173,7 +173,7 @@ bool RamForest::Commit()
     uint64_t num_hashes = m_num_leaves;
     for (uint8_t i = 0; i <= state.NumRows(); ++i) {
         assert(num_hashes <= m_data[i].size());
-        for (int j = 0; j < num_hashes; ++j) {
+        for (size_t j = 0; j < num_hashes; ++j) {
             m_file.write(reinterpret_cast<const char*>(m_data[i][j].data()), 32);
         }
         num_hashes >>= 1;
@@ -324,7 +324,7 @@ bool RamForest::Prove(BatchProof& proof, const std::vector<Hash>& targetHashes) 
     // Read proof hashes from the forest using the proof positions
     auto proof_positions = ForestState(m_num_leaves).ProofPositions(sorted_targets);
     std::vector<Hash> proof_hashes(proof_positions.first.size());
-    for (int i = 0; i < proof_hashes.size(); i++) {
+    for (size_t i = 0; i < proof_hashes.size(); i++) {
         proof_hashes[i] = Read(proof_positions.first[i]);
     }
 
@@ -401,7 +401,7 @@ bool RamForest::BuildUndoBatch(UndoBatch& undo, uint64_t num_adds, const std::ve
     ForestState prev_state(m_num_leaves + targets.size());
 
     std::vector<Hash> deleted_hashes;
-    for (int i = 0; i < targets.size(); ++i) {
+    for (size_t i = 0; i < targets.size(); ++i) {
         uint64_t pos = m_num_leaves + static_cast<uint64_t>(i);
         if (m_data.size() == 0 || pos >= m_data[0].size()) return false;
         deleted_hashes.push_back(Read(prev_state, pos));
@@ -502,7 +502,7 @@ bool RamForest::Undo(const UndoBatch& undo)
     CHECK_SAFE(m_data[0].size() == m_posmap.size());
     CHECK_SAFE([](const std::unordered_map<Hash, uint64_t, LeafHasher>& posmap,
                   const std::vector<std::vector<Hash>>& data) {
-        int pos = 0;
+        size_t pos = 0;
         for (const Hash& hash : data[0]) {
             auto it = posmap.find(hash);
             if (it == posmap.end()) return false;
