@@ -4,6 +4,7 @@
 #include <array>
 #include <cassert>
 #include <memory>
+#include <optional>
 #include <stdint.h>
 #include <stdexcept>
 #include <unordered_map>
@@ -11,6 +12,8 @@
 #include <vector>
 
 namespace utreexo {
+class ForestState;
+
 using Hash = std::array<uint8_t, 32>;
 using Leaf = std::pair<Hash, bool>;
 template <typename T>
@@ -37,6 +40,9 @@ public:
      * Return true on success and false on failure. (Proving can fail if a target hash does not exist in the forest)
      */
     virtual bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const = 0;
+    /* Return the hash at a position */
+    std::optional<const Hash> Read(uint64_t pos) const;
+    virtual std::optional<const Hash> Read(const ForestState& state, uint64_t pos) const = 0;
 
     /**
      * Verify a batch proof.

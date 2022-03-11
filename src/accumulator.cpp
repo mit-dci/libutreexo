@@ -9,6 +9,8 @@
 #include <iostream>
 #include <stdio.h>
 
+#include "state.h"
+
 namespace utreexo {
 
 Accumulator::Accumulator(uint64_t num_leaves)
@@ -18,6 +20,11 @@ Accumulator::Accumulator(uint64_t num_leaves)
 }
 
 Accumulator::~Accumulator() {}
+
+std::optional<const Hash> Accumulator::Read(uint64_t pos) const
+{
+    return Read(ForestState(m_num_leaves), pos);
+}
 
 bool Accumulator::Modify(const std::vector<Leaf>& leaves, const std::vector<uint64_t>& targets)
 {
