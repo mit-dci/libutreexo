@@ -348,16 +348,6 @@ bool RamForest::Verify(const BatchProof& proof, const std::vector<Hash>& target_
 
 bool RamForest::Add(const std::vector<Leaf>& leaves)
 {
-    // Each leaf must have a unique hash, because the leaf position map (m_posmap)
-    // can't deal with multiple leaf that have the same hash.
-    for (const Leaf& leaf : leaves) {
-        auto it = m_posmap.find(leaf.first);
-        if (it != m_posmap.end()) {
-            // This leaf is already included in the accumulator.
-            return false;
-        }
-    }
-
     // Preallocate data with the required size.
     ForestState next_state(m_num_leaves + leaves.size());
     for (uint8_t row = 0; row <= next_state.NumRows(); ++row) {
