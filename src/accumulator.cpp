@@ -1,7 +1,8 @@
-#include "../include/accumulator.h"
+#include "include/accumulator.h"
 #include "check.h"
 #include "crypto/common.h"
 #include "crypto/sha512.h"
+#include "include/batchproof.h"
 #include "node.h"
 #include "state.h"
 
@@ -136,7 +137,7 @@ bool Accumulator::Add(const std::vector<Leaf>& leaves)
     }(m_posmap, leaves));
 
     ForestState current_state(m_num_leaves);
-    // Adding leaves can't be batched, so we add one by one.
+    // TODO Adding leaves can be batched. Do implement this later.
     for (auto leaf = leaves.begin(); leaf < leaves.end(); ++leaf) {
         int root = m_roots.size() - 1;
         // Create a new leaf and append it to the end of roots.
@@ -221,6 +222,43 @@ bool Accumulator::Remove(const std::vector<uint64_t>& targets)
     FinalizeRemove(next_num_leaves);
     m_num_leaves = next_num_leaves;
 
+    return true;
+}
+
+bool Accumulator::Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const
+{
+    // Figure out the positions of the target hashes via the position map.
+    std::vector<uint64_t> targets;
+    targets.reserve(target_hashes.size());
+    for (const Hash& hash : target_hashes) {
+        auto posmap_it = m_posmap.find(hash);
+        if (posmap_it == m_posmap.end()) {
+            // TODO: error
+            return false;
+        }
+        targets.push_back(posmap_it->second);
+    }
+
+    // We need the sorted targets to compute the proof positions.
+    std::vector<uint64_t> sorted_targets(targets);
+    std::sort(sorted_targets.begin(), sorted_targets.end());
+
+    if (!ForestState(m_num_leaves).CheckTargetsSanity(sorted_targets)) {
+        return false;
+    }
+
+    // Read proof hashes from the forest using the proof positions
+    auto proof_positions = ForestState(m_num_leaves).ProofPositions(sorted_targets);
+    std::vector<Hash> proof_hashes(proof_positions.first.size());
+    for (int i = 0; i < proof_hashes.size(); i++) {
+        auto hash = Read(proof_positions.first[i]);
+        if (hash) {
+            proof_hashes[i] = hash.value();
+        }
+    }
+
+    // Create the batch proof from the *unsorted* targets and the proof hashes.
+    proof = BatchProof(targets, proof_hashes);
     return true;
 }
 

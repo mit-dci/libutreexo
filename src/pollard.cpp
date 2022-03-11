@@ -320,12 +320,6 @@ void Pollard::FinalizeRemove(uint64_t next_num_leaves)
     m_roots = new_roots;
 }
 
-bool Pollard::Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const
-{
-    // TODO: Add ability to prove cached leaves.
-    return false;
-}
-
 void Pollard::Prune()
 {
     for (NodePtr<Accumulator::Node>& root : m_roots) {
