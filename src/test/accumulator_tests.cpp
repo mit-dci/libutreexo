@@ -4,6 +4,8 @@
 #include <cstring>
 #include <random>
 
+#include "state.h"
+
 BOOST_AUTO_TEST_SUITE(accumulator_tests)
 
 using namespace utreexo;
@@ -499,6 +501,52 @@ BOOST_AUTO_TEST_CASE(pollard_remember)
     full.Roots(full_roots);
     pruned.Roots(pruned_roots);
     BOOST_CHECK(full_roots == pruned_roots);
+}
+
+BOOST_AUTO_TEST_CASE(simple_pollard_prove)
+{
+    RamForest full(0);
+    Pollard pruned(0);
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 8);
+
+    // Set the deletion to 0.
+    uint64_t target = 0;
+    leaves[target].second = true;
+
+    BOOST_CHECK(full.Modify(unused_undo, leaves, {}));
+    BOOST_CHECK(pruned.Modify(leaves, {}));
+
+    // Create the proofs.
+    BatchProof full_proof;
+    BatchProof pruned_proof;
+    BOOST_CHECK(full.Prove(full_proof, {leaves[target].first}));
+    BOOST_CHECK(pruned.Prove(pruned_proof, {leaves[target].first}));
+
+    // Sanity checking to see that all the positions of the proof are remembered in
+    // the pollard.
+    ForestState current_state(8);
+    auto positions = current_state.ProofPositions(std::vector<uint64_t>{target});
+
+    for (auto pos : positions.first) {
+        std::optional<const Hash> hash = pruned.Accumulator::Read(pos);
+        if (!hash){
+            std::stringstream s;
+            s << "Position " << pos << "failed to read";
+            BOOST_FAIL(s.str());
+        }
+    }
+
+    BOOST_CHECK(full_proof == pruned_proof);
+
+    // Set the remember to false so that the proof isn't cached.
+    leaves[target].second = false;
+
+    // Finally check that the batchproof actually verifies.
+    Pollard verify_pollard(0);
+    verify_pollard.Modify(leaves, {});
+    BOOST_CHECK(verify_pollard.Verify(pruned_proof, {leaves[target].first}));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
