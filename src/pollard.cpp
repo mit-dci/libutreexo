@@ -222,6 +222,12 @@ NodePtr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uint64_t to)
     node_to = family_to.at(0);
     sibling_to = family_to.at(1);
 
+    // Swap postions in the position map if we are on the bottom.
+    ForestState current_state = ForestState(m_num_leaves);
+    uint8_t row = current_state.DetectRow(from);
+    if (row == 0) std::swap(m_posmap[node_from->m_hash],
+            m_posmap[node_to->m_hash]);
+
     // Swap the hashes of node a and b.
     std::swap(node_from->m_hash, node_to->m_hash);
     // Swap the nieces of the siblings of a and b.
@@ -240,6 +246,12 @@ NodePtr<Accumulator::Node> Pollard::NewLeaf(const Leaf& leaf)
         /*node*/ int_node, /*sibling*/ int_node, /*parent*/ nullptr,
         m_num_leaves, m_num_leaves);
     m_roots.push_back(node);
+
+    // Only keep the hash in the map if the leaf is marked to be
+    // remembered.
+    if (leaf.second) {
+        m_posmap[leaf.first] = node->m_position;
+    }
 
     return m_roots.back();
 }
@@ -270,6 +282,13 @@ NodePtr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, Hash parent_h
 void Pollard::FinalizeRemove(uint64_t next_num_leaves)
 {
     ForestState current_state(m_num_leaves), next_state(next_num_leaves);
+
+    // Remove deleted leaf hashes from the position map.
+    for (uint64_t pos = next_state.m_num_leaves; pos < current_state.m_num_leaves; ++pos) {
+        if (auto read_hash = Read(pos)) {
+            m_posmap.erase(read_hash.value());
+        }
+    }
 
     // Compute the positions of the new roots in the current state.
     std::vector<uint64_t> new_positions = current_state.RootPositions(next_state.m_num_leaves);
