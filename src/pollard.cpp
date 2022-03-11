@@ -241,6 +241,12 @@ NodePtr<Accumulator::Node> Pollard::NewLeaf(const Leaf& leaf)
         m_num_leaves, m_num_leaves);
     m_roots.push_back(node);
 
+    // Only keep the hash in the map if the leaf is marked to be
+    // remembered.
+    if (leaf.second) {
+        m_posmap[leaf.first] = node->m_position;
+    }
+
     return m_roots.back();
 }
 
@@ -270,6 +276,13 @@ NodePtr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, Hash parent_h
 void Pollard::FinalizeRemove(uint64_t next_num_leaves)
 {
     ForestState current_state(m_num_leaves), next_state(next_num_leaves);
+
+    // Remove deleted leaf hashes from the position map.
+    for (uint64_t pos = next_state.m_num_leaves; pos < current_state.m_num_leaves; ++pos) {
+        if (std::optional<const Hash> read_hash = Accumulator::Read(pos)) {
+            m_posmap.erase(read_hash.value());
+        }
+    }
 
     // Compute the positions of the new roots in the current state.
     std::vector<uint64_t> new_positions = current_state.RootPositions(next_state.m_num_leaves);
