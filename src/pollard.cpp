@@ -285,7 +285,7 @@ void Pollard::FinalizeRemove(uint64_t next_num_leaves)
 
     // Remove deleted leaf hashes from the position map.
     for (uint64_t pos = next_state.m_num_leaves; pos < current_state.m_num_leaves; ++pos) {
-        if (auto read_hash = Read(pos)) {
+        if (auto read_hash = Accumulator::Read(pos)) {
             m_posmap.erase(read_hash.value());
         }
     }
@@ -324,12 +324,6 @@ void Pollard::FinalizeRemove(uint64_t next_num_leaves)
 
     m_roots.clear();
     m_roots = new_roots;
-}
-
-bool Pollard::Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const
-{
-    // TODO: Add ability to prove cached leaves.
-    return false;
 }
 
 void Pollard::Prune()

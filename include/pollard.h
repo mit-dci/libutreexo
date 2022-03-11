@@ -47,8 +47,6 @@ public:
     Pollard(uint64_t num_leaves);
     ~Pollard();
 
-    bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const override;
-
     std::optional<const Hash> Read(const ForestState& state, uint64_t pos) const override;
 
     bool Verify(const BatchProof& proof, const std::vector<Hash>& target_hashes) override;

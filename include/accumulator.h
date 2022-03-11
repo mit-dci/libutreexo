@@ -1,6 +1,8 @@
 #ifndef UTREEXO_ACCUMULATOR_H
 #define UTREEXO_ACCUMULATOR_H
 
+#include "include/batchproof.h"
+
 #include <array>
 #include <cassert>
 #include <memory>
@@ -28,18 +30,6 @@ public:
     Accumulator(uint64_t num_leaves);
     virtual ~Accumulator();
 
-    /** 
-     * Create a batch proof for a set of target hashes. (A target hash is the hash a leaf in the forest)
-     * The target hashes are not required to be sorted by leaf position in the forest and
-     * the targets of the batch proof will have the same order as the hashes.
-     *
-     * Example:
-     *   target_hashes = [hash of leaf 50, hash of leaf 10, hash of leaf 20]
-     *   proof.targets = [50, 10, 20]
-     *
-     * Return true on success and false on failure. (Proving can fail if a target hash does not exist in the forest)
-     */
-    virtual bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const = 0;
     /* Return the hash at a position */
     std::optional<const Hash> Read(uint64_t pos) const;
     virtual std::optional<const Hash> Read(const ForestState& state, uint64_t pos) const = 0;
@@ -53,6 +43,22 @@ public:
 
     /** Modify the accumulator by adding leaves and removing targets. */
     bool Modify(const std::vector<Leaf>& new_leaves, const std::vector<uint64_t>& targets);
+
+    /**
+     * Create a batch proof for a set of target hashes. (A target hash is the hash a leaf in the forest)
+     * The target hashes are not required to be sorted by leaf position in the forest and
+     * the targets of the batch proof will have the same order as the hashes.
+     *
+     * Example:
+     *   target_hashes = [hash of leaf 50, hash of leaf 10, hash of leaf 20]
+     *   proof.targets = [50, 10, 20]
+     *
+     * Return true on success and false on failure. Proving can fail if a target hash does not
+     * exist in the accumulator. For forests, this failure will only happen if a target hash
+     * doesn't exist at all. For Pollards, a target hash could exist but the failure may still
+     * happen as Pollard doesn't cache every hash.
+     */
+    bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const;
 
     /** Return the root hashes (roots of taller trees first) */
     void Roots(std::vector<Hash>& roots) const;

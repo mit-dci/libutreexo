@@ -296,37 +296,6 @@ void RamForest::FinalizeRemove(uint64_t next_num_leaves)
     this->m_roots = new_roots;
 }
 
-bool RamForest::Prove(BatchProof& proof, const std::vector<Hash>& targetHashes) const
-{
-    // Figure out the positions of the target hashes via the position map.
-    std::vector<uint64_t> targets;
-    targets.reserve(targetHashes.size());
-    for (const Hash& hash : targetHashes) {
-        auto posmap_it = m_posmap.find(hash);
-        if (posmap_it == m_posmap.end()) {
-            // TODO: error
-            return false;
-        }
-        targets.push_back(posmap_it->second);
-    }
-
-    // We need the sorted targets to compute the proof positions.
-    std::vector<uint64_t> sorted_targets(targets);
-    std::sort(sorted_targets.begin(), sorted_targets.end());
-
-    assert(ForestState(m_num_leaves).CheckTargetsSanity(sorted_targets));
-
-    // Read proof hashes from the forest using the proof positions
-    auto proof_positions = ForestState(m_num_leaves).ProofPositions(sorted_targets);
-    std::vector<Hash> proof_hashes(proof_positions.first.size());
-    for (int i = 0; i < proof_hashes.size(); i++) {
-        proof_hashes[i] = Accumulator::Read(proof_positions.first[i]).value();
-    }
-
-    // Create the batch proof from the *unsorted* targets and the proof hashes.
-    proof = BatchProof(targets, proof_hashes);
-    return true;
-}
 
 bool RamForest::Verify(const BatchProof& proof, const std::vector<Hash>& target_hashes)
 {

@@ -50,7 +50,6 @@ public:
     RamForest(const std::string& file);
     ~RamForest();
 
-    bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const override;
     bool Verify(const BatchProof& proof, const std::vector<Hash>& target_hashes) override;
     bool Add(const std::vector<Leaf>& leaves) override;
 
