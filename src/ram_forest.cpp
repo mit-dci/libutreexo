@@ -1,9 +1,11 @@
-#include "../include/ram_forest.h"
-#include "../include/batchproof.h"
+#include "include/ram_forest.h"
+#include "include/batchproof.h"
+
 #include "check.h"
 #include "crypto/common.h"
 #include "node.h"
 #include "state.h"
+
 #include <algorithm>
 #include <iostream>
 #include <unordered_set>
@@ -54,11 +56,11 @@ void RamForest::Node::ReHash()
     // get the children hashes
     uint64_t left_child_pos = state.Child(this->m_position, 0),
              right_child_pos = state.Child(this->m_position, 1);
-    const Hash& left_child_hash = m_forest->Read(left_child_pos);
-    const Hash& right_child_hash = m_forest->Read(right_child_pos);
+    std::optional<const Hash> left_child_hash = m_forest->Accumulator::Read(left_child_pos);
+    std::optional<const Hash> right_child_hash = m_forest->Accumulator::Read(right_child_pos);
 
     // compute the hash
-    Accumulator::ParentHash(m_hash, left_child_hash, right_child_hash);
+    Accumulator::ParentHash(m_hash, left_child_hash.value(), right_child_hash.value());
 
     // write hash back
     uint8_t row = state.DetectRow(m_position);
@@ -182,7 +184,7 @@ bool RamForest::Commit()
     return true;
 }
 
-const Hash& RamForest::Read(ForestState state, uint64_t pos) const
+std::optional<const Hash> RamForest::Read(const ForestState& state, uint64_t pos) const
 {
     uint8_t row = state.DetectRow(pos);
     uint64_t offset = state.RowOffset(pos);
@@ -193,13 +195,7 @@ const Hash& RamForest::Read(ForestState state, uint64_t pos) const
 
     assert((pos - offset) < row_data.size());
 
-    return row_data.at(pos - offset);
-}
-
-const Hash& RamForest::Read(uint64_t pos) const
-{
-    ForestState state(m_num_leaves);
-    return Read(state, pos);
+    return std::optional<const Hash>{row_data.at(pos - offset)};
 }
 
 void RamForest::SwapRange(uint64_t from, uint64_t to, uint64_t range)
@@ -268,7 +264,6 @@ NodePtr<Accumulator::Node> RamForest::NewLeaf(const Leaf& leaf)
     m_roots.push_back(new_root);
 
     m_posmap[leaf.first] = new_root->m_position;
-
     return this->m_roots.back();
 }
 
@@ -280,7 +275,7 @@ void RamForest::FinalizeRemove(uint64_t next_num_leaves)
 
     // Remove deleted leaf hashes from the position map.
     for (uint64_t pos = next_state.m_num_leaves; pos < current_state.m_num_leaves; ++pos) {
-        m_posmap.erase(Read(pos));
+        m_posmap.erase(Accumulator::Read(pos).value());
     }
 
     assert(m_posmap.size() == next_num_leaves);
@@ -294,7 +289,7 @@ void RamForest::FinalizeRemove(uint64_t next_num_leaves)
 
     for (uint64_t new_pos : new_positions) {
         NodePtr<RamForest::Node> new_root = Accumulator::MakeNodePtr<RamForest::Node>(this, next_num_leaves, new_pos);
-        new_root->m_hash = Read(new_pos);
+        new_root->m_hash = Accumulator::Read(new_pos).value();
         new_roots.push_back(new_root);
     }
 
@@ -325,7 +320,7 @@ bool RamForest::Prove(BatchProof& proof, const std::vector<Hash>& targetHashes) 
     auto proof_positions = ForestState(m_num_leaves).ProofPositions(sorted_targets);
     std::vector<Hash> proof_hashes(proof_positions.first.size());
     for (int i = 0; i < proof_hashes.size(); i++) {
-        proof_hashes[i] = Read(proof_positions.first[i]);
+        proof_hashes[i] = Accumulator::Read(proof_positions.first[i]).value();
     }
 
     // Create the batch proof from the *unsorted* targets and the proof hashes.
@@ -382,7 +377,7 @@ void RamForest::RestoreRoots()
     m_roots.clear();
     std::vector<uint64_t> root_positions = ForestState(m_num_leaves).RootPositions();
     for (const uint64_t& pos : root_positions) {
-        m_roots.push_back(Accumulator::MakeNodePtr<RamForest::Node>(this, Read(pos), m_num_leaves, pos));
+        m_roots.push_back(Accumulator::MakeNodePtr<RamForest::Node>(this, Accumulator::Read(pos).value(), m_num_leaves, pos));
     }
 }
 
@@ -394,7 +389,7 @@ bool RamForest::BuildUndoBatch(UndoBatch& undo, uint64_t num_adds, const std::ve
     for (int i = 0; i < targets.size(); ++i) {
         uint64_t pos = m_num_leaves + static_cast<uint64_t>(i);
         if (m_data.size() == 0 || pos >= m_data[0].size()) return false;
-        deleted_hashes.push_back(Read(prev_state, pos));
+        deleted_hashes.push_back(Read(prev_state, pos).value());
     }
 
     undo = UndoBatch(num_adds, targets, deleted_hashes);
@@ -411,7 +406,7 @@ bool RamForest::Undo(const UndoBatch& undo)
 
     // Erase the added leaves from the position map.
     for (uint64_t i = m_num_leaves - undo.GetNumAdds(); i < m_num_leaves; ++i) {
-        const Hash& hash = Read(i);
+        const Hash hash = Accumulator::Read(i).value();
         if (m_posmap.find(hash) == m_posmap.end()) return false;
         m_posmap.erase(hash);
     }
@@ -509,7 +504,7 @@ bool RamForest::Undo(const UndoBatch& undo)
 Hash RamForest::GetLeaf(uint64_t pos) const
 {
     assert(pos < m_num_leaves);
-    return Read(pos);
+    return Accumulator::Read(pos).value();
 }
 
 bool RamForest::operator==(const RamForest& other)

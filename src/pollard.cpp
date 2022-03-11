@@ -4,6 +4,7 @@
 #include "state.h"
 #include <deque>
 #include <memory>
+#include <optional>
 #include <string.h>
 #include <tuple>
 
@@ -51,7 +52,7 @@ public:
     /* Chop of deadend nieces. */
     void Prune();
 
-    /* 
+    /*
      * Return wether or not this node is a deadend.
      * A node is a deadend if both nieces do not point to another node.
      */
@@ -145,6 +146,17 @@ Pollard::~Pollard()
     m_roots.clear();
 }
 
+std::optional<const Hash> Pollard::Read(const ForestState& state, uint64_t pos) const
+{
+    NodePtr<Accumulator::Node> unused;
+    std::vector<NodePtr<InternalNode>> family_to = Read(pos, unused, true);
+
+    if (!family_to.front()) {
+        return {};
+    }
+    return std::optional<const Hash>{family_to.front()->m_hash};
+}
+
 std::vector<NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<Accumulator::Node>& rehash_path, bool record_path) const
 {
     ForestState current_state(m_num_leaves);
@@ -182,7 +194,7 @@ std::vector<NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<
         }
 
         if (!sibling) {
-            return family;
+            return {};
         }
 
         node = sibling->m_nieces[lr_sib];

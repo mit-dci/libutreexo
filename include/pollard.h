@@ -1,6 +1,8 @@
 #ifndef UTREEXO_POLLARD_H
 #define UTREEXO_POLLARD_H
 
+#include <optional>
+
 #include "accumulator.h"
 
 namespace utreexo {
@@ -46,6 +48,9 @@ public:
     ~Pollard();
 
     bool Prove(BatchProof& proof, const std::vector<Hash>& target_hashes) const override;
+
+    std::optional<const Hash> Read(const ForestState& state, uint64_t pos) const override;
+
     bool Verify(const BatchProof& proof, const std::vector<Hash>& target_hashes) override;
 
     /** Prune everything except the roots. */
