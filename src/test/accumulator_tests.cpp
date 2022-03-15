@@ -1,8 +1,10 @@
 #include "../../include/utreexo.h"
+#include "../state.h"
 #include <boost/test/unit_test.hpp>
 #include <chrono>
 #include <cstring>
 #include <random>
+#include <iostream>
 
 BOOST_AUTO_TEST_SUITE(accumulator_tests)
 
@@ -499,6 +501,20 @@ BOOST_AUTO_TEST_CASE(pollard_remember)
     full.Roots(full_roots);
     pruned.Roots(pruned_roots);
     BOOST_CHECK(full_roots == pruned_roots);
+}
+
+BOOST_AUTO_TEST_CASE(ToString)
+{
+    RamForest full(0);
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 8);
+
+    BOOST_CHECK(full.Modify(unused_undo, leaves, {}));
+
+    ForestState state(8);
+    std::cout << full.ToString(state) << std::endl;
+    ;
 }
 
 BOOST_AUTO_TEST_SUITE_END()
