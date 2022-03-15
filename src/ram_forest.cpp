@@ -554,7 +554,7 @@ std::string RamForest::tostring(const ForestState& f)
         unsigned int rowlen = (1 << (fh - h));
         for (int j = 0; j < rowlen; j++) {
             string valstring = "";
-            bool ok = (f.m_num_leaves >= pos);
+            bool ok = (m_num_leaves >= pos);
             if (ok) {
                 Hash val = Read(f, pos);
                 if (val.empty()) {
