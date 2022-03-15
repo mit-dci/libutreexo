@@ -1,4 +1,5 @@
 #include "../../include/utreexo.h"
+#include "../state.h"
 #include <boost/test/unit_test.hpp>
 #include <chrono>
 #include <cstring>
