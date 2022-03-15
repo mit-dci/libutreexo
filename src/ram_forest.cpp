@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <iostream>
 #include <unordered_set>
-using namespace std;
+
 namespace utreexo {
 
 size_t RamForest::LeafHasher::operator()(const Hash& hash) const { return ReadLE64(hash.data()); }
@@ -542,27 +542,27 @@ std::string RamForest::tostring(const ForestState& f)
             s += "\t" + std::to_string(i);
             for(int j=0;j<12;j++)
             {
-                s+=to_string(roots[i][j]);
+                s+=std::to_string(roots[i][j]);
             }
             s+='\n';
         }
         return s;
     }
-    vector<string> output((fh * 2) + 1, "");
+    std::vector<std::string> output((fh * 2) + 1, "");
     uint8_t pos;
     for (int h = 0; h <= fh; h++) {
         unsigned int rowlen = (1 << (fh - h));
         for (int j = 0; j < rowlen; j++) {
-            string valstring = "";
+            std::string valstring = "";
             bool ok = (m_num_leaves >= pos);
             if (ok) {
                 Hash val = Read(f, pos);
                 if (val.empty()) {
-                    valstring += to_string(val[0]) + to_string(val[1]);
+                    valstring += std::to_string(val[0]) + std::to_string(val[1]);
                 }
             }
             if (valstring != "") {
-                output[h * 2] += to_string(pos) + valstring;
+                output[h * 2] += std::to_string(pos) + valstring;
             } else {
                 output[h * 2] += "       ";
             }
@@ -583,7 +583,7 @@ std::string RamForest::tostring(const ForestState& f)
             pos++;
         }
     }
-    string s;
+    std::string s;
     for (int z = output.size() - 1; z >= 0; z++) {
         s += output[z] + "\n";
     }
