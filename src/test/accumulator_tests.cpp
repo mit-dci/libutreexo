@@ -510,6 +510,7 @@ BOOST_AUTO_TEST_CASE(ToString)
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 8);
 
+ 
     BOOST_CHECK(full.Modify(unused_undo, leaves, {}));
 
     ForestState state(8);
