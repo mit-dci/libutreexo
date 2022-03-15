@@ -5,6 +5,9 @@
 *.dylib
 *.lai
 *.o
+*.so
+*.so.0
+*.so.0.0.0
 .deps
 *.swp
 test_utreexo
@@ -38,4 +41,7 @@ config.log
 config.status
 configure
 libtool
-
+test_forest
+test-suite.log
+test-verify.log
+test-verify.trs
