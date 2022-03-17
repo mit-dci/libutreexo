@@ -44,4 +44,8 @@ libtool
 test_forest
 test-suite.log
 test-verify.log
+<<<<<<< HEAD
 test-verify.trs
+=======
+test-verify.trs
+>>>>>>> 184d7dc9be081ad1d4e7245ce22967bf10ae377a

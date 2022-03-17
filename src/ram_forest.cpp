@@ -564,6 +564,7 @@ std::string RamForest::ToString() const
             }
             if (valstring != "") {
                 std::string p=std::to_string(position);
+<<<<<<< HEAD
                 output[h * 2] += p+":"+valstring;
                 for(int s=0;s<h+1;s++)
                 {
@@ -574,6 +575,9 @@ std::string RamForest::ToString() const
                         output[h * 2] += "     ";
                     }
                 }
+=======
+                output[h * 2] += p+":"+valstring+" ";
+>>>>>>> 184d7dc9be081ad1d4e7245ce22967bf10ae377a
             } else {
                 output[h * 2] += "       ";
             }
