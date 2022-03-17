@@ -75,7 +75,7 @@ public:
     Hash GetLeaf(uint64_t pos) const;
 
     bool operator==(const RamForest& other);
-    std::string ToString(const ForestState& f) const;
+    std::string ToString() const;
 };
 
 };     // namespace utreexo

@@ -513,8 +513,7 @@ BOOST_AUTO_TEST_CASE(ToString)
  
     BOOST_CHECK(full.Modify(unused_undo, leaves, {}));
 
-    ForestState state(8);
-    std::cout << full.ToString(state) << std::endl;
+    std::cout << full.ToString() << std::endl;
     ;
 }
 

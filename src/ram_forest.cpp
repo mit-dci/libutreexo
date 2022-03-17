@@ -531,9 +531,10 @@ bool RamForest::operator==(const RamForest& other)
            roots == other_roots &&
            m_posmap == other.m_posmap;
 }
-std::string RamForest::ToString(const ForestState& forest) const
+std::string RamForest::ToString() const
 {
-    uint8_t forest_height = forest.NumRows();
+    ForestState forest(m_num_leaves);
+    u_int64_t forest_height = forest.NumRows();
     if (forest_height > 6) {
         std::string s = "can't print " + std::to_string(forest.m_num_leaves) + " leaves. roots:\n";
         std::vector<utreexo::Hash> roots;
@@ -563,7 +564,16 @@ std::string RamForest::ToString(const ForestState& forest) const
             }
             if (valstring != "") {
                 std::string p=std::to_string(position);
-                output[h * 2] += p+":"+valstring+" ";
+                output[h * 2] += p+":"+valstring;
+                for(int s=0;s<h+1;s++)
+                {
+                    
+                    output[h * 2] += "     ";
+                    if(j%2!=0)
+                    {
+                        output[h * 2] += "     ";
+                    }
+                }
             } else {
                 output[h * 2] += "       ";
             }
@@ -576,7 +586,6 @@ std::string RamForest::ToString(const ForestState& forest) const
                 for (int q = 0; q < ((1 << h) - 1) / 2; q++) {
                     output[(h * 2) - 1] += "       ";
                 }
-
                 for (int q = 0; q < ((1 << h) - 1); q++) {
                     output[(h * 2) - 1] += "       ";
                 }
