@@ -5,7 +5,10 @@
 *.dylib
 *.lai
 *.o
-.deps
+*.so
+*.so.0
+*.so.0.0.0
+.depsc
 *.swp
 test_utreexo
 .vscode
@@ -14,6 +17,7 @@ compile_commands.json
 .dirstamp
 make
 test-verify
+.deps
 
 # autoreconf
 Makefile
@@ -38,4 +42,7 @@ config.log
 config.status
 configure
 libtool
-
+test_forest
+test-suite.log
+test-verify.log
+test-verify.trs

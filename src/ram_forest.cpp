@@ -531,5 +531,73 @@ bool RamForest::operator==(const RamForest& other)
            roots == other_roots &&
            m_posmap == other.m_posmap;
 }
+std::string RamForest::ToString() const
+{
+    ForestState forest(m_num_leaves);
+    u_int64_t forest_height = forest.NumRows();
+    if (forest_height > 6) {
+        std::string s = "can't print " + std::to_string(forest.m_num_leaves) + " leaves. roots:\n";
+        std::vector<utreexo::Hash> roots;
+        Roots(roots);
+        for (int i = 0; i < roots.size(); i++) {
+            s += "\t" + std::to_string(i);
+            for(int j=0;j<12;j++)
+            {
+                        s += std::to_string(roots[i][j]);
+            }
+            s+="\n";
+        }
+        return s;
+    }
+    std::vector<std::string> output((forest_height * 2) + 1, "");
+    uint64_t position=0;
+    for (int h = 0; h <= forest_height; h++) {
+        unsigned int row_length = (1 << (forest_height - h));
+        for (int j = 0; j < row_length; j++) {
+            std::string valstring = "";
+            bool ok = (m_num_leaves >= position);
+            if (ok) {
+                Hash val = Read(position);
+                if (!val.empty()) {
+                    valstring = std::to_string(val[0])+std::to_string(val[1]);
+                }
+            }
+            if (valstring != "") {
+                std::string p=std::to_string(position);
+                output[h * 2] += p+":"+valstring;
+                for(int s=0;s<h+1;s++)
+                {
+                    
+                    output[h * 2] += "     ";
+                    if(j%2!=0)
+                    {
+                        output[h * 2] += "     ";
+                    }
+                }
+            } else {
+                output[h * 2] += "       ";
+            }
+            if (h > 0) {
+                output[(h * 2) - 1] += "|-------";
+                for (int q = 0; q < ((1 << h) - 1) / 2; q++) {
+                    output[(h * 2) - 1] += "--------";
+                }
+                output[(h * 2) - 1] += "\\       ";
+                for (int q = 0; q < ((1 << h) - 1) / 2; q++) {
+                    output[(h * 2) - 1] += "       ";
+                }
+                for (int q = 0; q < ((1 << h) - 1); q++) {
+                    output[(h * 2) - 1] += "       ";
+                }
+            }
+            position++;
+        }
+    }
+    std::string s="";
+    for (int z = output.size() - 1; z >= 0; z--) {
+         s += output[z] + "\n";
+    }
+    return s;
+}
 
 }; // namespace utreexo
