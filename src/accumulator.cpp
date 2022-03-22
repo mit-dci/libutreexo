@@ -4,6 +4,7 @@
 #include "crypto/sha512.h"
 #include "node.h"
 #include "state.h"
+
 #include <cstring>
 #include <iostream>
 #include <stdio.h>
@@ -84,6 +85,16 @@ void Accumulator::PrintRoots() const
 
 bool Accumulator::Add(const std::vector<Leaf>& leaves)
 {
+    CHECK_SAFE([](const std::unordered_map<Hash, uint64_t, LeafHasher>& posmap,
+                  const std::vector<Leaf>& leaves) {
+        // Each leaf should be unique, that means we can't add a leaf that
+        // already exits in the position map.
+        for (const Leaf& leaf : leaves) {
+            if (posmap.find(leaf.first) != posmap.end()) return false;
+        }
+        return true;
+    }(m_posmap, leaves));
+
     ForestState current_state(m_num_leaves);
     // Adding leaves can't be batched, so we add one by one.
     for (auto leaf = leaves.begin(); leaf < leaves.end(); ++leaf) {

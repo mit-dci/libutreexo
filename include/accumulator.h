@@ -3,11 +3,12 @@
 
 #include <array>
 #include <cassert>
+#include <memory>
 #include <stdint.h>
+#include <stdexcept>
+#include <unordered_map>
 #include <utility>
 #include <vector>
-#include <memory>
-#include <stdexcept>
 
 namespace utreexo {
 using Hash = std::array<uint8_t, 32>;
@@ -55,6 +56,10 @@ public:
     uint64_t NumLeaves() const;
 
 protected:
+    struct LeafHasher {
+        size_t operator()(const Hash& hash) const;
+    };
+
     /*
      * Node represents a node in the accumulator forest.
      * This is used to create an abstraction on top of a accumulator implementation,
@@ -68,6 +73,13 @@ protected:
 
     // The roots of the accumulator.
     std::vector<NodePtr<Accumulator::Node>> m_roots;
+
+    // A map from leaf hashes to their positions.
+    // This is needed for proving that leaves are included in the accumulator.
+    // The forest will always have all the positions of all the leaves. The pollard
+    // has the option of pruning leaves, thus will not always have all the positions
+    // of all the leaves.
+    std::unordered_map<Hash, uint64_t, LeafHasher> m_posmap;
 
     /*
      * Swap two subtrees in the forest.

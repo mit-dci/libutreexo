@@ -1,9 +1,9 @@
 #ifndef UTREEXO_RAMFOREST_H
 #define UTREEXO_RAMFOREST_H
 
-#include "accumulator.h"
 #include <fstream>
-#include <unordered_map>
+
+#include "accumulator.h"
 
 namespace utreexo {
 
@@ -14,16 +14,8 @@ class ForestState;
 class RamForest : public Accumulator
 {
 private:
-    struct LeafHasher {
-        size_t operator()(const Hash& hash) const;
-    };
-
     // A vector of hashes for each row.
     std::vector<std::vector<Hash>> m_data;
-
-    // A map from leaf hashes to their positions.
-    // This is needed for proving that leaves are included in the accumulator.
-    std::unordered_map<Hash, uint64_t, LeafHasher> m_posmap;
 
     // RamForests implementation of Accumulator::Node.
     class Node;
