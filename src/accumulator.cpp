@@ -90,6 +90,39 @@ void Accumulator::PrintRoots() const
     }
 }
 
+void Accumulator::UpdatePositionMapForRange(uint64_t from, uint64_t to, uint64_t range)
+{
+    for (uint64_t i = 0; i < range; ++i) {
+        uint64_t swap_from = from + i;
+        uint64_t swap_to = to + i;
+
+        std::optional<const Hash> from_hash = Read(swap_from);
+        std::optional<const Hash> to_hash = Read(swap_to);
+
+        if (from_hash.has_value() && m_posmap.find(from_hash.value()) != m_posmap.end()) {
+            CHECK_SAFE(m_posmap.at(from_hash.value()) == swap_from);
+            m_posmap[from_hash.value()] = swap_to;
+        }
+
+        if (to_hash.has_value() && m_posmap.find(to_hash.value()) != m_posmap.end()) {
+            CHECK_SAFE(m_posmap.at(to_hash.value()) == swap_to);
+            m_posmap[to_hash.value()] = swap_from;
+        }
+    }
+}
+
+void Accumulator::UpdatePositionMapForSubtreeSwap(uint64_t from, uint64_t to)
+{
+    ForestState current_state = ForestState(m_num_leaves);
+    uint8_t row = current_state.DetectRow(from);
+
+    uint64_t start_from = current_state.LeftDescendant(from, row);
+    uint64_t start_to = current_state.LeftDescendant(to, row);
+    uint64_t range = 1ULL << row;
+
+    UpdatePositionMapForRange(start_from, start_to, range);
+}
+
 bool Accumulator::Add(const std::vector<Leaf>& leaves)
 {
     CHECK_SAFE([](const std::unordered_map<Hash, uint64_t, LeafHasher>& posmap,
@@ -164,6 +197,7 @@ bool Accumulator::Remove(const std::vector<uint64_t>& targets)
         if (row < swaps.size()) {
             // Execute all the swaps in this row.
             for (const ForestState::Swap swap : swaps.at(row)) {
+                UpdatePositionMapForSubtreeSwap(swap.m_from, swap.m_to);
                 NodePtr<Accumulator::Node> swap_dirt = SwapSubTrees(swap.m_from, swap.m_to);
                 if (!swap.m_collapse) dirty_nodes.push_back(swap_dirt);
             }

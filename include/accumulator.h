@@ -87,6 +87,9 @@ protected:
     // of all the leaves.
     std::unordered_map<Hash, uint64_t, LeafHasher> m_posmap;
 
+    void UpdatePositionMapForRange(uint64_t from, uint64_t to, uint64_t range);
+    void UpdatePositionMapForSubtreeSwap(uint64_t from, uint64_t to);
+
     /*
      * Swap two subtrees in the forest.
      * Return the nodes that need to be rehashed.

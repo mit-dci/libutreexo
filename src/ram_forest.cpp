@@ -208,9 +208,6 @@ void RamForest::SwapRange(uint64_t from, uint64_t to, uint64_t range)
 
     for (uint64_t i = 0; i < range; ++i) {
         std::swap(rowData[(from - offset_from) + i], rowData[(to - offset_to) + i]);
-
-        // Swap postions in the position map if we are on the bottom.
-        if (row == 0) std::swap(m_posmap[rowData[(from - offset_from) + i]], m_posmap[rowData[(to - offset_to) + i]]);
     }
 }
 
@@ -446,6 +443,7 @@ bool RamForest::Undo(const UndoBatch& undo)
             dirt_set.insert(swap.m_to + i);
         }
 
+        UpdatePositionMapForRange(swap.m_from, swap.m_to, range);
         SwapRange(swap.m_from, swap.m_to, range);
     }
 
