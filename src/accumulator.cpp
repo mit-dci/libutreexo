@@ -62,21 +62,10 @@ std::string HexStr(const T s)
 
 void Accumulator::ParentHash(Hash& parent, const Hash& left, const Hash& right)
 {
-    //CHECK_SAFE(!left.IsNull());
-    //CHECK_SAFE(!right.IsNull());
-
     CSHA512 hasher(CSHA512::OUTPUT_SIZE_256);
-
-    // copy the two hashes into one 64 byte buffer
-    uint8_t data[64];
-    memcpy(data, left.data(), 32);
-    memcpy(data + 32, right.data(), 32);
-    hasher.Write(data, 64);
-
-    // finalize the hash and write it into parentHash
+    hasher.Write(left.data(), 32);
+    hasher.Write(right.data(), 32);
     hasher.Finalize256(parent.data());
-
-    // std::cout << "hash: " << HexStr(left).substr(0, 8) << " + " << HexStr(right).substr(0, 8) << " = " << HexStr(parent).substr(0, 8) << std::endl;
 }
 
 void Accumulator::PrintRoots() const
