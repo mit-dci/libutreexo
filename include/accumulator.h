@@ -28,10 +28,6 @@ public:
     Accumulator(uint64_t num_leaves);
     virtual ~Accumulator();
 
-    /* Return the hash at a position */
-    std::optional<const Hash> Read(uint64_t pos) const;
-    virtual std::optional<const Hash> Read(const ForestState& state, uint64_t pos) const = 0;
-
     /**
      * Verify a batch proof.
      * Return whether or not the proof proved the target hashes.
@@ -93,6 +89,9 @@ protected:
 
     void UpdatePositionMapForRange(uint64_t from, uint64_t to, uint64_t range);
     void UpdatePositionMapForSubtreeSwap(uint64_t from, uint64_t to);
+
+    /* Return the hash at a position */
+    virtual std::optional<const Hash> Read(uint64_t pos) const = 0;
 
     /*
      * Swap two subtrees in the forest.

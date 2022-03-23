@@ -23,6 +23,7 @@ private:
      */
     std::vector<NodePtr<Pollard::InternalNode>> Read(uint64_t pos, NodePtr<Accumulator::Node>& path, bool record_path) const;
 
+    std::optional<const Hash> Read(uint64_t pos) const override;
     NodePtr<Accumulator::Node> SwapSubTrees(uint64_t from, uint64_t to) override;
     NodePtr<Accumulator::Node> MergeRoot(uint64_t parent_pos, Hash parent_hash) override;
     NodePtr<Accumulator::Node> NewLeaf(const Leaf& hash) override;
@@ -46,8 +47,6 @@ public:
     Pollard(const std::vector<Hash>& roots, uint64_t num_leaves);
     Pollard(uint64_t num_leaves);
     ~Pollard();
-
-    std::optional<const Hash> Read(const ForestState& state, uint64_t pos) const override;
 
     bool Verify(const BatchProof& proof, const std::vector<Hash>& target_hashes) override;
 

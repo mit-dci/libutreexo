@@ -522,21 +522,7 @@ BOOST_AUTO_TEST_CASE(simple_pollard_prove)
     BatchProof full_proof;
     BatchProof pruned_proof;
     BOOST_CHECK(full.Prove(full_proof, {leaves[target].first}));
-    BOOST_CHECK(pruned.Prove(pruned_proof, {leaves[target].first}));
-
-    // Sanity checking to see that all the positions of the proof are remembered in
-    // the pollard.
-    ForestState current_state(8);
-    auto positions = current_state.ProofPositions(std::vector<uint64_t>{target});
-
-    for (auto pos : positions.first) {
-        std::optional<const Hash> hash = pruned.Accumulator::Read(pos);
-        if (!hash){
-            std::stringstream s;
-            s << "Position " << pos << "failed to read";
-            BOOST_FAIL(s.str());
-        }
-    }
+    BOOST_CHECK(pruned.Prove(pruned_proof, {leaves[target].first})); 
 
     BOOST_CHECK(full_proof == pruned_proof);
 

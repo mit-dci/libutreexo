@@ -146,10 +146,10 @@ Pollard::~Pollard()
     m_roots.clear();
 }
 
-std::optional<const Hash> Pollard::Read(const ForestState& state, uint64_t pos) const
+std::optional<const Hash> Pollard::Read(uint64_t pos) const
 {
     NodePtr<Accumulator::Node> unused;
-    std::vector<NodePtr<InternalNode>> family_to = Read(pos, unused, true);
+    std::vector<NodePtr<InternalNode>> family_to = Read(pos, unused, false);
     if (family_to.size() == 0 || !family_to.front()) {
         return std::nullopt;
     }
@@ -279,7 +279,7 @@ void Pollard::FinalizeRemove(uint64_t next_num_leaves)
 
     // Remove deleted leaf hashes from the position map.
     for (uint64_t pos = next_state.m_num_leaves; pos < current_state.m_num_leaves; ++pos) {
-        if (std::optional<const Hash> read_hash = Accumulator::Read(pos)) {
+        if (std::optional<const Hash> read_hash = Read(pos)) {
             m_posmap.erase(read_hash.value());
         }
     }
