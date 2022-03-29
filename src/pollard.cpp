@@ -158,6 +158,20 @@ std::optional<const Hash> Pollard::Read(uint64_t pos) const
     return std::optional<const Hash>{family_to.front()->m_hash};
 }
 
+std::vector<Hash> Pollard::ReadLeafRange(uint64_t pos, uint64_t range) const
+{
+    // TODO: implement efficient way of reading these hashes from the range,
+    // without trying to read every position.
+    std::vector<Hash> hashes;
+    for (uint64_t i = pos; i < pos + range; ++i) {
+        std::optional<const Hash> hash = Read(i);
+        if (hash.has_value()) {
+            hashes.push_back(Read(i).value());
+        }
+    }
+    return hashes;
+}
+
 std::vector<NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<Accumulator::Node>& rehash_path, bool record_path) const
 {
     ForestState current_state(m_num_leaves);

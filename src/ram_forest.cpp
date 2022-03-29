@@ -202,6 +202,15 @@ std::optional<const Hash> RamForest::Read(uint64_t pos) const
     return Read(state, pos);
 }
 
+std::vector<Hash> RamForest::ReadLeafRange(uint64_t pos, uint64_t range) const
+{
+    std::vector<Hash> hashes;
+    for (uint64_t i = pos; i < pos + range; ++i) {
+        hashes.push_back(Read(i).value());
+    }
+    return hashes;
+}
+
 void RamForest::SwapRange(uint64_t from, uint64_t to, uint64_t range)
 {
     ForestState current_state = ForestState(m_num_leaves);

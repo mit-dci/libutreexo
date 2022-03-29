@@ -29,6 +29,7 @@ private:
 
     std::optional<const Hash> Read(ForestState state, uint64_t pos) const;
     std::optional<const Hash> Read(uint64_t pos) const override;
+    std::vector<Hash> ReadLeafRange(uint64_t pos, uint64_t range) const override;
 
     /* Swap the hashes of ranges (from, from+range) and (to, to+range). */
     void SwapRange(uint64_t from, uint64_t to, uint64_t range);

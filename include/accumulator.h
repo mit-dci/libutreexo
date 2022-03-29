@@ -92,6 +92,8 @@ protected:
 
     /* Return the hash at a position */
     virtual std::optional<const Hash> Read(uint64_t pos) const = 0;
+    /* Return all hashes that are available in the interval [pos, pos+range[ */
+    virtual std::vector<Hash> ReadLeafRange(uint64_t pos, uint64_t range) const = 0;
 
     /*
      * Swap two subtrees in the forest.

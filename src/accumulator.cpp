@@ -77,21 +77,21 @@ void Accumulator::PrintRoots() const
 
 void Accumulator::UpdatePositionMapForRange(uint64_t from, uint64_t to, uint64_t range)
 {
-    for (uint64_t i = 0; i < range; ++i) {
-        uint64_t swap_from = from + i;
-        uint64_t swap_to = to + i;
+    std::vector<Hash> from_range = ReadLeafRange(from, range);
+    std::vector<Hash> to_range = ReadLeafRange(to, range);
 
-        std::optional<const Hash> from_hash = Read(swap_from);
-        std::optional<const Hash> to_hash = Read(swap_to);
-
-        if (from_hash.has_value() && m_posmap.find(from_hash.value()) != m_posmap.end()) {
-            CHECK_SAFE(m_posmap.at(from_hash.value()) == swap_from);
-            m_posmap[from_hash.value()] = swap_to;
+    int64_t offset = static_cast<int64_t>(to) - static_cast<int64_t>(from);
+    for (const Hash& hash : from_range) {
+        auto pos_it = m_posmap.find(hash);
+        if (m_posmap.find(hash) != m_posmap.end()) {
+            m_posmap[hash] = static_cast<uint64_t>(pos_it->second + offset);
         }
+    }
 
-        if (to_hash.has_value() && m_posmap.find(to_hash.value()) != m_posmap.end()) {
-            CHECK_SAFE(m_posmap.at(to_hash.value()) == swap_to);
-            m_posmap[to_hash.value()] = swap_from;
+    for (const Hash& hash : to_range) {
+        auto pos_it = m_posmap.find(hash);
+        if (m_posmap.find(hash) != m_posmap.end()) {
+            m_posmap[hash] = static_cast<uint64_t>(pos_it->second - offset);
         }
     }
 }

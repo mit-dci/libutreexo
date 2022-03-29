@@ -24,6 +24,7 @@ private:
     std::vector<NodePtr<Pollard::InternalNode>> Read(uint64_t pos, NodePtr<Accumulator::Node>& path, bool record_path) const;
 
     std::optional<const Hash> Read(uint64_t pos) const override;
+    std::vector<Hash> ReadLeafRange(uint64_t pos, uint64_t range) const override;
     NodePtr<Accumulator::Node> SwapSubTrees(uint64_t from, uint64_t to) override;
     NodePtr<Accumulator::Node> MergeRoot(uint64_t parent_pos, Hash parent_hash) override;
     NodePtr<Accumulator::Node> NewLeaf(const Leaf& hash) override;
