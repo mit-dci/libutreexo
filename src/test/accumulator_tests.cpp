@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstring>
 #include <random>
+#include <vector>
 
 #include "state.h"
 
@@ -345,6 +346,7 @@ BOOST_AUTO_TEST_CASE(hash_to_known_invalid_proof)
 
     full.Modify(unused_undo, leaves, {});
     pruned.Modify(leaves, {});
+    BOOST_CHECK(pruned.NumCachedLeaves() == 1); // cached: 0
 
     BatchProof proof;
     std::vector<Hash> leaf_hashes = {leaves[4].first, leaves[5].first, leaves[6].first, leaves[7].first};
@@ -356,12 +358,14 @@ BOOST_AUTO_TEST_CASE(hash_to_known_invalid_proof)
     // Verification with an invalid proof hash should not pass.
     BOOST_CHECK(!pruned.Verify(BatchProof(proof.GetSortedTargets(), {invalid_hash}), leaf_hashes));
     BOOST_CHECK(pruned.Verify(proof, leaf_hashes));
+    BOOST_CHECK(pruned.NumCachedLeaves() == 5); // cached: 0, 4, 5, 6, 7
 
     leaf_hashes = {leaves[1].first};
     BOOST_CHECK(full.Prove(proof, leaf_hashes));
 
     BOOST_CHECK(!pruned.Verify(BatchProof(proof.GetSortedTargets(), {invalid_hash}), leaf_hashes));
     BOOST_CHECK(pruned.Verify(proof, leaf_hashes));
+    BOOST_CHECK(pruned.NumCachedLeaves() == 6); // cached: 0, 1, 4, 5, 6, 7
 }
 
 BOOST_AUTO_TEST_CASE(simple_blockchain)
@@ -378,7 +382,7 @@ BOOST_AUTO_TEST_CASE(simple_blockchain)
 
     {
         std::vector<Leaf> adds;
-        CreateTestLeaves(adds, 8, unique_hash);
+        CreateTestLeaves(adds, 8, unique_hash); 
         unique_hash += adds.size();
         full.Modify(unused_undo, adds, {});
         pruned.Modify(adds, {});
@@ -418,7 +422,24 @@ BOOST_AUTO_TEST_CASE(simple_blockchain)
         BOOST_CHECK(full.Modify(unused_undo, adds, proof.GetSortedTargets()));
 
         BOOST_TEST(pruned.Verify(proof, leaf_hashes));
+        BOOST_CHECK(pruned.NumCachedLeaves() == leaf_hashes.size());
+
+        // The pollard should be able to produce a prove for any of the cached leaves.
+        {
+            std::vector<Hash> roots;
+            pruned.Roots(roots);
+            Pollard foo(roots, pruned.NumLeaves());
+
+            for (const Hash& hash : leaf_hashes) {
+                BatchProof leaf_proof;
+                BOOST_CHECK(pruned.Prove(leaf_proof, {hash}));
+                BOOST_CHECK(foo.Verify(leaf_proof, {hash}));
+                foo.Prune();
+            }
+        }
+
         BOOST_CHECK(pruned.Modify(adds, proof.GetSortedTargets()));
+        BOOST_CHECK(pruned.NumCachedLeaves() == 0);
 
         if (proof.GetTargets().size() > 0) BOOST_CHECK(!pruned.Verify(proof, leaf_hashes));
 

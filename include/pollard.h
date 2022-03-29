@@ -52,6 +52,8 @@ public:
 
     /** Prune everything except the roots. */
     void Prune();
+
+    uint64_t NumCachedLeaves() const { return m_remember ? m_remember.use_count() - 1 : 0; }
 };
 
 };     // namespace utreexo

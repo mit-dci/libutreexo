@@ -1,5 +1,6 @@
 #include "../include/pollard.h"
 #include "../include/batchproof.h"
+#include "check.h"
 #include "node.h"
 #include "state.h"
 #include <deque>
@@ -334,6 +335,9 @@ void Pollard::InitChildrenOfComputed(NodePtr<Pollard::Node>& node,
                                      bool& recover_left,
                                      bool& recover_right)
 {
+    recover_left = false;
+    recover_right = false;
+
     if (!node->m_sibling->m_nieces[0]) {
         // The left child does not exist in the pollard. We need to hook it in.
         node->m_sibling->m_nieces[0] = Accumulator::MakeNodePtr<InternalNode>();
@@ -531,19 +535,30 @@ bool Pollard::VerifyProofTree(std::vector<NodePtr<Pollard::Node>> proof_tree,
 
             bool is_leaf = proof_node->m_position < m_num_leaves;
             if (is_leaf) {
-                assert(target_hash < target_hashes.end());
+                if (target_hash == target_hashes.end()) {
+                    return false;
+                }
+
+                CHECK_SAFE(proof_node->IsTargetOrAncestor());
 
                 // ======================
                 // This node is a target.
                 // Either populate with target hash or verify that the hash matches if cached.
                 if (proof_node->IsCached()) {
                     verification_success = proof_node->m_node->m_hash == *target_hash;
+                    if (!verification_success) break;
+
+                    CHECK_SAFE(proof_node->m_position == ForestState(m_num_leaves).RootPosition(0) ||
+                               proof_node->m_node->m_nieces[0] == m_remember ||
+                               m_posmap.find(*target_hash) != m_posmap.end());
+
                     // Mark the parent as valid if this is not a leaf root.
                     if (verification_success && parent && proof_node->IsSiblingCached()) parent->MarkAsValid();
                 } else {
                     proof_node->m_node->m_hash = *target_hash;
                 }
 
+                proof_node->m_sibling->m_nieces[0] = m_remember;
 
                 ++target_hash;
                 continue;
@@ -633,8 +648,6 @@ bool Pollard::Verify(const BatchProof& proof, const std::vector<Hash>& target_ha
             case RECOVERY_CHOP_BOTH:
                 intersection.first->m_sibling->Chop();
                 break;
-            default:
-                assert(false);
             }
         }
 
@@ -644,6 +657,11 @@ bool Pollard::Verify(const BatchProof& proof, const std::vector<Hash>& target_ha
         proof_tree.clear();
 
         return false;
+    }
+
+    // All targets are now remembered.
+    for (int i = 0; i < target_hashes.size(); i++) {
+        m_posmap[target_hashes[i]] = proof.GetSortedTargets()[i];
     }
 
     // TODO: in theory the proof tree could be used during deletion as well.
