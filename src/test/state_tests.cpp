@@ -25,6 +25,18 @@ BOOST_AUTO_TEST_CASE(positions)
      * 00  01  02  03  04  05  06  07  08  09  10  11  12  13  14
     */
 
+    /*
+     *  11100
+     *  |-----------------------\
+     *  11000                   11001                   11010
+     *  |-----------\           |-----------\           |-----------\
+     *  10000       10001       10010       10011       10100       10101       10110
+     *  |-----\     |-----\     |-----\     |-----\     |-----\     |-----\     |-----\
+     *  00000 00001 00010 00011 00100 00101 00110 00111 01000 01001 01010 01011 01100 01101 01110
+    */
+   // the bits visualization helps to better understand the algorithms
+   // https://github.com/mit-dci/utreexo/blob/master/accumulator/printout.txt
+
     ForestState state(15);
 
     BOOST_CHECK(state.LeftChild(28) == 24);
