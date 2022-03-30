@@ -27,6 +27,13 @@ public:
 
     BatchProof() {}
 
+    void SetNull()
+    {
+        m_targets = std::vector<uint64_t>();
+        m_sorted_targets = std::vector<uint64_t>();
+        m_proof = std::vector<std::array<uint8_t, 32>>();
+    }
+
     const std::vector<uint64_t>& GetTargets() const;
     const std::vector<uint64_t>& GetSortedTargets() const;
     const std::vector<std::array<uint8_t, 32>>& GetHashes() const;
