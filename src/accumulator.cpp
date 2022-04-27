@@ -67,6 +67,26 @@ void Accumulator::ParentHash(Hash& parent, const Hash& left, const Hash& right)
     hasher.Finalize256(parent.data());
 }
 
+bool Accumulator::ComparePositionMap(Accumulator& other) const
+{
+    for (auto [hash, pos] : m_posmap) {
+        auto it_other = other.m_posmap.find(hash);
+        if (it_other->second != pos) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void Accumulator::PrintPositionMap() const
+{
+    std::cout << "pos map:" << std::endl;
+    for (auto [hash, pos] : m_posmap) {
+        std::cout << HexStr(hash) << " -> " << pos << std::endl;
+    }
+}
+
 void Accumulator::PrintRoots() const
 {
     for (auto root : m_roots) {
@@ -76,6 +96,11 @@ void Accumulator::PrintRoots() const
 
 void Accumulator::UpdatePositionMapForRange(uint64_t from, uint64_t to, uint64_t range)
 {
+    if (m_posmap.size() == 0) {
+        // Nothing to update.
+        return;
+    }
+
     std::vector<Hash> from_range = ReadLeafRange(from, range);
     std::vector<Hash> to_range = ReadLeafRange(to, range);
 

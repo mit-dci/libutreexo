@@ -57,6 +57,8 @@ public:
     /** Return the root hashes (roots of taller trees first) */
     void Roots(std::vector<Hash>& roots) const;
 
+    bool ComparePositionMap(Accumulator& other) const;
+    void PrintPositionMap() const;
     void PrintRoots() const;
 
     uint64_t NumLeaves() const;
