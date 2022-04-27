@@ -11,17 +11,20 @@ class Pollard : public Accumulator
 {
 private:
     class InternalNode;
+    using InternalSiblings = std::tuple<NodePtr<Pollard::InternalNode>, NodePtr<Pollard::InternalNode>>;
+
     /* Pollards implementation of Accumulator::Node */
     class Node;
 
     NodePtr<Pollard::InternalNode> m_remember;
 
     /*
-     * Return the node and its sibling.
-     * Point path to the parent of the node. The path to the node can be traversed in reverse order using the
+     * Return the node and its sibling. Point path to the parent of the node.
+     * The path to the node can be traversed in reverse order using the
      * Accumulator::Node::Parent function.
      */
-    std::vector<NodePtr<Pollard::InternalNode>> Read(uint64_t pos, NodePtr<Accumulator::Node>& path, bool record_path) const;
+    InternalSiblings ReadSiblings(uint64_t pos, NodePtr<Accumulator::Node>& path, bool record_path) const;
+    InternalSiblings ReadSiblings(uint64_t pos) const;
 
     std::optional<const Hash> Read(uint64_t pos) const override;
     std::vector<Hash> ReadLeafRange(uint64_t pos, uint64_t range) const override;

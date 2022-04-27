@@ -149,13 +149,12 @@ Pollard::~Pollard()
 
 std::optional<const Hash> Pollard::Read(uint64_t pos) const
 {
-    NodePtr<Accumulator::Node> unused;
-    std::vector<NodePtr<InternalNode>> family_to = Read(pos, unused, false);
-    if (family_to.size() == 0 || !family_to.front()) {
+    auto [node, sibling] = ReadSiblings(pos);
+    if (!node) {
         return std::nullopt;
     }
 
-    return std::optional<const Hash>{family_to.front()->m_hash};
+    return std::optional<const Hash>{node->m_hash};
 }
 
 std::vector<Hash> Pollard::ReadLeafRange(uint64_t pos, uint64_t range) const
@@ -172,31 +171,24 @@ std::vector<Hash> Pollard::ReadLeafRange(uint64_t pos, uint64_t range) const
     return hashes;
 }
 
-std::vector<NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<Accumulator::Node>& rehash_path, bool record_path) const
+Pollard::InternalSiblings Pollard::ReadSiblings(uint64_t pos, NodePtr<Accumulator::Node>& rehash_path, bool record_path) const
 {
-    ForestState current_state(m_num_leaves);
-
-    std::vector<NodePtr<Pollard::InternalNode>> family;
-    family.reserve(2);
+    const ForestState current_state(m_num_leaves);
 
     // Get the path to the position.
-    uint8_t tree, path_length;
-    uint64_t path_bits;
-    std::tie(tree, path_length, path_bits) = current_state.Path(pos);
+    const auto [tree, path_length, path_bits] = current_state.Path(pos);
 
     // There is no node above a root.
     rehash_path = nullptr;
 
-    NodePtr<Pollard::InternalNode> node = INTERNAL_NODE(m_roots[tree]),
-                                   sibling = INTERNAL_NODE(m_roots[tree]);
     uint64_t node_pos = current_state.RootPositions()[tree];
+    NodePtr<Pollard::InternalNode> node = INTERNAL_NODE(m_roots[tree]);
+    NodePtr<Pollard::InternalNode> sibling = node;
 
     if (path_length == 0) {
-        family.push_back(node);
-        family.push_back(sibling);
-        return family;
+        // Roots act as their own sibling.
+        return {node, sibling};
     }
-
 
     // Traverse the pollard until the desired position is reached.
     for (uint8_t i = 0; i < path_length; ++i) {
@@ -209,7 +201,7 @@ std::vector<NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<
         }
 
         if (!sibling) {
-            return {};
+            return {nullptr, nullptr};
         }
 
         node = sibling->m_nieces[lr_sib];
@@ -218,29 +210,46 @@ std::vector<NodePtr<Pollard::InternalNode>> Pollard::Read(uint64_t pos, NodePtr<
         node_pos = current_state.Child(node_pos, lr_sib);
     }
 
-    family.push_back(node);
-    family.push_back(sibling);
-    return family;
+    return {node, sibling};
+}
+
+Pollard::InternalSiblings Pollard::ReadSiblings(uint64_t pos) const
+{
+    NodePtr<Accumulator::Node> unused;
+    return ReadSiblings(pos, unused, false);
 }
 
 NodePtr<Accumulator::Node> Pollard::SwapSubTrees(uint64_t from, uint64_t to)
 {
-    NodePtr<Accumulator::Node> rehash_path, unused;
-    std::vector<NodePtr<InternalNode>> family_from, family_to;
-    family_from = this->Read(from, unused, false);
-    family_to = this->Read(to, rehash_path, true);
+    ForestState state(m_num_leaves);
 
-    NodePtr<InternalNode> node_from, sibling_from,
-        node_to, sibling_to;
-    node_from = family_from.at(0);
-    sibling_from = family_from.at(1);
-    node_to = family_to.at(0);
-    sibling_to = family_to.at(1);
+    NodePtr<Accumulator::Node> rehash_path;
 
-    // Swap the hashes of node a and b.
-    std::swap(node_from->m_hash, node_to->m_hash);
-    // Swap the nieces of the siblings of a and b.
-    std::swap(sibling_from->m_nieces, sibling_to->m_nieces);
+    auto hook_in_sibling = [&rehash_path, state](NodePtr<InternalNode>& sibling, uint64_t pos) {
+        if (!sibling) {
+            uint8_t lr = pos & 1;
+            uint8_t lr_sib = state.Sibling(lr);
+            sibling = Accumulator::MakeNodePtr<InternalNode>();
+            std::dynamic_pointer_cast<Pollard::Node>(rehash_path)->m_sibling->m_nieces[lr_sib] = sibling;
+        }
+    };
+
+    auto [node_from, sibling_from] = ReadSiblings(from, rehash_path, true);
+    CHECK_SAFE(node_from);
+    hook_in_sibling(sibling_from, from);
+
+    NodePtr<InternalNode> node_to{nullptr}, sibling_to{nullptr};
+    if (state.Sibling(from) == to) {
+        node_to = sibling_from;
+        sibling_to = node_from;
+    } else {
+        std::tie(node_to, sibling_to) = ReadSiblings(to, rehash_path, true);
+        CHECK_SAFE(node_to);
+        hook_in_sibling(sibling_to, to);
+    }
+
+    std::swap(node_to->m_hash, node_from->m_hash);
+    std::swap(sibling_to->m_nieces, sibling_from->m_nieces);
 
     return rehash_path;
 }
@@ -309,20 +318,19 @@ void Pollard::FinalizeRemove(uint64_t next_num_leaves)
     while (new_root_index >= 0) {
         uint64_t new_pos = new_positions.at(new_root_index);
 
-        NodePtr<Accumulator::Node> unused_path;
-        std::vector<NodePtr<InternalNode>> family = Read(new_pos, unused_path, false);
-        assert(family.size() == 2);
+        auto [int_node, int_sibling] = ReadSiblings(new_pos);
+        CHECK_SAFE(int_node);
 
         // TODO: the forest state of these root nodes should reflect the new state
         // since they survive the remove op.
         NodePtr<Pollard::Node> node = Accumulator::MakeNodePtr<Pollard::Node>(
-            family.at(0), family.at(0), nullptr,
+            int_node, int_node, nullptr,
             current_state.m_num_leaves, new_pos);
 
         // When truning a node into a root, it's nieces are really it's children
-        if (family.at(1)) {
-            node->m_node->m_nieces[0] = family.at(1)->m_nieces[0];
-            node->m_node->m_nieces[1] = family.at(1)->m_nieces[1];
+        if (int_sibling) {
+            node->m_node->m_nieces[0] = int_sibling->m_nieces[0];
+            node->m_node->m_nieces[1] = int_sibling->m_nieces[1];
         } else {
             node->m_node->Chop();
         }
