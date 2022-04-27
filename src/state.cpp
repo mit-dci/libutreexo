@@ -298,10 +298,8 @@ std::vector<uint64_t> ForestState::RootPositions(uint64_t num_leaves) const
 
 uint8_t ForestState::RootIndex(uint64_t pos) const
 {
-    // TODO: think of bit shifty way to do this.
-    uint8_t root_index, tmp;
-    uint64_t tmp1;
-    std::tie(root_index, tmp, tmp1) = Path(pos);
+    uint8_t root_index{0};
+    std::tie(root_index, std::ignore, std::ignore) = Path(pos);
     return root_index;
 }
 
