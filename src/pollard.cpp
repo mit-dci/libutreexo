@@ -287,7 +287,11 @@ NodePtr<Accumulator::Node> Pollard::MergeRoot(uint64_t parent_pos, Hash parent_h
 
     // create internal node
     NodePtr<InternalNode> int_node = Accumulator::MakeNodePtr<InternalNode>(int_left, int_right, parent_hash);
-    int_node->Prune();
+
+    if (int_left->m_nieces[0] != m_remember &&
+        int_right->m_nieces[0] != m_remember) {
+        int_node->Prune();
+    }
 
     NodePtr<Pollard::Node> node = Accumulator::MakeNodePtr<Pollard::Node>(
         /*node*/ int_node, /*sibling*/ int_node, /*parent*/ nullptr,
