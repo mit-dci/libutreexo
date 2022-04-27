@@ -27,30 +27,20 @@ public:
 
     BatchProof() {}
 
-    void SetNull()
-    {
-        m_targets = std::vector<uint64_t>();
-        m_sorted_targets = std::vector<uint64_t>();
-        m_proof = std::vector<std::array<uint8_t, 32>>();
-    }
-
     const std::vector<uint64_t>& GetTargets() const;
     const std::vector<uint64_t>& GetSortedTargets() const;
     const std::vector<std::array<uint8_t, 32>>& GetHashes() const;
 
-    void Serialize(std::vector<uint8_t>& bytes) const;
-    bool Unserialize(const std::vector<uint8_t>& bytes);
-
     /**
      * Perform some simple sanity checks on a proof.
-	 * - Check that the targets are sorted in ascending order with no duplicates.
-	 * - Check that the number of proof hashes is not larger than the number expected hashes.
+     * - Check that the targets are sorted in ascending order with no
+     *   duplicates.
+     * - Check that the number of proof hashes is not larger than the number
+     *   of expected hashes.
      */
     bool CheckSanity(uint64_t num_leaves) const;
 
     bool operator==(const BatchProof& other);
-
-    void Print();
 };
 
 /** UndoBatch represents the data needed to undo a batch modification in the accumulator. */
@@ -68,18 +58,13 @@ public:
         : m_num_additions(num_adds),
           m_deleted_positions(deleted_positions),
           m_deleted_hashes(deleted_hashes) {}
-    UndoBatch() {}
-
-    void Serialize(std::vector<uint8_t>& bytes) const;
-    bool Unserialize(const std::vector<uint8_t>& bytes);
+    UndoBatch() : m_num_additions(0) {}
 
     uint64_t GetNumAdds() const;
     const std::vector<uint64_t>& GetDeletedPositions() const;
     const std::vector<std::array<uint8_t, 32>>& GetDeletedHashes() const;
 
     bool operator==(const UndoBatch& other);
-
-    void Print();
 };
 
 };     // namespace utreexo

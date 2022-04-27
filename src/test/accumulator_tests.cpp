@@ -136,13 +136,6 @@ BOOST_AUTO_TEST_CASE(simple)
     BOOST_CHECK(pruned_roots[3] == HashFromStr("aee875faf7276a9817d0db6195414118b1348697d2e2abd4b3fcee46c579833b"));
     BOOST_CHECK(pruned_roots == full_roots);
 
-    std::vector<uint8_t> undo_bytes;
-    undo.Serialize(undo_bytes);
-    {
-        UndoBatch copy;
-        BOOST_CHECK(copy.Unserialize(undo_bytes));
-        BOOST_CHECK(copy == undo);
-    }
     // Undo last modification
     BOOST_CHECK(full.Undo(undo));
 
@@ -172,26 +165,6 @@ BOOST_AUTO_TEST_CASE(ramforest_disk)
     BatchProof copy;
     BOOST_CHECK(full.Prove(copy, {leaves[0].first}));
     BOOST_CHECK(copy == proof);
-}
-
-
-BOOST_AUTO_TEST_CASE(batchproof_serialization)
-{
-    RamForest full(0);
-
-    std::vector<Leaf> leaves;
-    CreateTestLeaves(leaves, 32);
-
-    full.Modify(unused_undo, leaves, {});
-
-    std::vector<uint8_t> proof_bytes;
-    BatchProof proof1;
-    BOOST_CHECK(full.Prove(proof1, {leaves[0].first, leaves[1].first}));
-    proof1.Serialize(proof_bytes);
-
-    BatchProof proof2;
-    BOOST_CHECK(proof2.Unserialize(proof_bytes));
-    BOOST_CHECK(proof1 == proof2);
 }
 
 BOOST_AUTO_TEST_CASE(singular_leaf_prove)
