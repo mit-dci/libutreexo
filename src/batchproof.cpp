@@ -100,8 +100,8 @@ bool BatchProof::CheckSanity(uint64_t num_leaves) const
         return false;
     }
 
-    std::vector<uint64_t> proof_positions, tmp;
-    std::tie(proof_positions, tmp) = state.ProofPositions(m_sorted_targets);
+    std::vector<uint64_t> proof_positions;
+    std::tie(proof_positions, std::ignore) = state.ProofPositions(m_sorted_targets);
     return proof_positions.size() >= m_proof.size();
 }
 

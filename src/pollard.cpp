@@ -409,8 +409,7 @@ bool Pollard::CreateProofTree(std::vector<NodePtr<Pollard::Node>>& proof_tree_ou
                               const BatchProof& proof)
 {
     ForestState state(m_num_leaves);
-    std::vector<uint64_t> proof_positions, computed_positions;
-    std::tie(proof_positions, computed_positions) = state.ProofPositions(proof.GetSortedTargets());
+    auto [proof_positions, computed_positions] = state.ProofPositions(proof.GetSortedTargets());
 
     auto proof_hash = proof.GetHashes().crbegin();
     auto proof_pos = proof_positions.crbegin();
