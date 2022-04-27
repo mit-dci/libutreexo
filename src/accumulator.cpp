@@ -234,10 +234,10 @@ bool Accumulator::Prove(BatchProof& proof, const std::vector<Hash>& target_hashe
     auto proof_positions = ForestState(m_num_leaves).ProofPositions(sorted_targets);
     std::vector<Hash> proof_hashes(proof_positions.first.size());
     for (int i = 0; i < proof_hashes.size(); i++) {
-        auto hash = Read(proof_positions.first[i]);
-        if (hash) {
-            proof_hashes[i] = hash.value();
-        }
+        std::optional<Hash> hash = Read(proof_positions.first[i]);
+        if (!hash) return false;
+
+        proof_hashes[i] = hash.value();
     }
 
     // Create the batch proof from the *unsorted* targets and the proof hashes.
