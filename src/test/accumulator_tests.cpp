@@ -620,4 +620,51 @@ BOOST_AUTO_TEST_CASE(ramforest_undo)
     BOOST_CHECK(full == full_prev);
 }
 
+BOOST_AUTO_TEST_CASE(simple_posmap_updates)
+{
+    RamForest full(0);
+    Pollard pruned(0);
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 16);
+
+    leaves[0].second = true;
+    leaves[7].second = true;
+
+    BOOST_CHECK(full.Modify(unused_undo, leaves, {}));
+    BOOST_CHECK(pruned.Modify(leaves, {}));
+
+    BOOST_CHECK(pruned.CountNodes() == 10);
+    BOOST_CHECK(pruned.ComparePositionMap(full));
+    BOOST_CHECK(pruned.NumCachedLeaves() == 2);
+
+    BatchProof proof;
+    BOOST_CHECK(pruned.Prove(proof, {leaves[0].first}));
+    BOOST_CHECK(pruned.Verify(proof, {leaves[0].first}));
+
+    BOOST_CHECK(pruned.Modify({}, {0}));
+    BOOST_CHECK(full.Modify(unused_undo, {}, {0}));
+    BOOST_CHECK(pruned.ComparePositionMap(full));
+}
+
+BOOST_AUTO_TEST_CASE(add_memorable_and_remove)
+{
+    RamForest full(0);
+    Pollard pruned(0);
+
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 8);
+
+    leaves[0].second = true;
+
+    BOOST_CHECK(full.Modify(unused_undo, leaves, {}));
+    BOOST_CHECK(pruned.Modify(leaves, {}));
+
+    BatchProof proof;
+    BOOST_CHECK(pruned.Prove(proof, {leaves[0].first}));
+    BOOST_CHECK(pruned.NumCachedLeaves() == 1);
+
+    BOOST_CHECK(pruned.Modify({}, {0}));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
