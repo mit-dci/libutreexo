@@ -351,6 +351,21 @@ void Pollard::Prune()
     assert(m_remember.use_count() == 1);
 }
 
+uint64_t Pollard::CountNodes(const NodePtr<Pollard::InternalNode>& node) const
+{
+    if (!node || node == m_remember) return 0;
+    return 1 + CountNodes(node->m_nieces[0]) + CountNodes(node->m_nieces[1]);
+}
+
+uint64_t Pollard::CountNodes() const
+{
+    uint64_t res = 0;
+    for (auto root : m_roots) {
+        res += CountNodes(INTERNAL_NODE(root));
+    }
+    return res;
+}
+
 void Pollard::InitChildrenOfComputed(NodePtr<Pollard::Node>& node,
                                      NodePtr<Pollard::Node>& left_child,
                                      NodePtr<Pollard::Node>& right_child,

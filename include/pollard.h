@@ -58,6 +58,8 @@ public:
     void Prune();
 
     uint64_t NumCachedLeaves() const { return m_remember ? m_remember.use_count() - 1 : 0; }
+    uint64_t CountNodes(const NodePtr<Pollard::InternalNode>& node) const;
+    uint64_t CountNodes() const;
 };
 
 };     // namespace utreexo
