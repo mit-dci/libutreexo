@@ -1,4 +1,4 @@
-#include "../include/batchproof.h"
+#include "batchproof.h"
 #include "fuzz.h"
 #include <cassert>
 

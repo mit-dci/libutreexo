@@ -15,15 +15,17 @@ BOOST_AUTO_TEST_CASE(constructor)
 
 BOOST_AUTO_TEST_CASE(positions)
 {
-    /*
-     * 28
-     * |---------------\
-     * 24              25              26
-     * |-------\       |-------\       |-------\
-     * 16      17      18      19      20      21      22
-     * |---\   |---\   |---\   |---\   |---\   |---\   |---\
-     * 00  01  02  03  04  05  06  07  08  09  10  11  12  13  14
-    */
+    /* 
+	 * xx
+	 * |-------------------------------\
+     * 28                              xx
+     * |---------------\               |---------------\
+     * 24              25              26              xx
+     * |-------\       |-------\       |-------\       |-------\
+     * 16      17      18      19      20      21      22      xx
+     * |---\   |---\   |---\   |---\   |---\   |---\   |---\   |---\
+     * 00  01  02  03  04  05  06  07  08  09  10  11  12  13  14  xx
+     */
 
     /*
      *  11100
@@ -33,9 +35,9 @@ BOOST_AUTO_TEST_CASE(positions)
      *  10000       10001       10010       10011       10100       10101       10110
      *  |-----\     |-----\     |-----\     |-----\     |-----\     |-----\     |-----\
      *  00000 00001 00010 00011 00100 00101 00110 00111 01000 01001 01010 01011 01100 01101 01110
-    */
-   // the bits visualization helps to better understand the algorithms
-   // https://github.com/mit-dci/utreexo/blob/master/accumulator/printout.txt
+     */
+    // the bits visualization helps to better understand the algorithms
+    // https://github.com/mit-dci/utreexo/blob/master/accumulator/printout.txt
 
     ForestState state(15);
 
@@ -66,7 +68,7 @@ BOOST_AUTO_TEST_CASE(proof)
      * 16      17      18      19      20      21      22
      * |---\   |---\   |---\   |---\   |---\   |---\   |---\
      * 00  01  02  03  04  05  06  07  08  09  10  11  12  13  14
-    */
+     */
 
     ForestState state(15);
 

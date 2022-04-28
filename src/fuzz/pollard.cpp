@@ -1,6 +1,6 @@
-#include "../include/pollard.h"
-#include "../include/batchproof.h"
-#include "../include/ram_forest.h"
+#include "pollard.h"
+#include "batchproof.h"
+#include "ram_forest.h"
 #include "fuzz.h"
 #include <iostream>
 

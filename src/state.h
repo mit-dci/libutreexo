@@ -82,6 +82,10 @@ public:
     std::pair<std::vector<uint64_t>, std::vector<uint64_t>>
     ProofPositions(const std::vector<uint64_t>& targets) const;
 
+    bool RemoveSiblings(std::vector<uint64_t>& result, const std::vector<uint64_t>& targets) const;
+    std::vector<uint64_t> SwaplessTransform(const std::vector<uint64_t>& targets) const;
+    std::vector<uint64_t> SimpleProofPositions(const std::vector<uint64_t>& targets) const;
+
     // Functions for root stuff:
 
     // Return the number of roots.
@@ -134,7 +138,7 @@ private:
                           bool root_present) const;
 
     /*
-     * 
+     *
      */
     std::vector<ForestState::Swap> MakeSwaps(const std::vector<uint64_t>& targets,
                                              bool deletion_remains,
@@ -142,7 +146,7 @@ private:
                                              uint64_t rootPos) const;
 
     /*
-     * 
+     *
      */
     ForestState::Swap MakeCollapse(const std::vector<uint64_t>& targets,
                                    bool deletion_remains,
@@ -151,7 +155,7 @@ private:
                                    uint64_t next_num_leaves) const;
 
     /*
-     * 
+     *
      */
     void ConvertCollapses(std::vector<std::vector<ForestState::Swap>>& swaps,
                           std::vector<ForestState::Swap>& collapses) const;

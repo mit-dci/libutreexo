@@ -1,14 +1,14 @@
 #ifndef UTREEXO_NODE_H
 #define UTREEXO_NODE_H
 
-#include "../include/accumulator.h"
+#include "interface.h"
 #include <array>
 
 namespace utreexo {
 
 using Hash = std::array<uint8_t, 32>;
 
-class Accumulator::Node
+class V1Accumulator::Node
 {
 public:
     // The number of leaves at the time this node was created.
@@ -16,7 +16,7 @@ public:
 
     // A pointer to the parent node.
     // This is useful if you want to rehash a path from the bottom up.
-    NodePtr<Accumulator::Node> m_parent;
+    NodePtr<V1Accumulator::Node> m_parent;
 
     // The position of the node in the forest.
     uint64_t m_position;
@@ -39,7 +39,7 @@ public:
      * Return the parent of the node.
      * A return value of nullptr does *not* always indicate that a tree top was reached. 
      */
-    virtual NodePtr<Accumulator::Node> Parent() const { return m_parent; }
+    virtual NodePtr<V1Accumulator::Node> Parent() const { return m_parent; }
 };
 
 }; // namespace utreexo

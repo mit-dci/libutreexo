@@ -10,12 +10,13 @@
  * Unconditional failure on condition failure.
  * Primarily used in testing harnesses.
  */
-#define CHECK(cond) do { \
-    if (!(cond)) { \
-        fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, "Check condition failed: " #cond); \
-        abort(); \
-    } \
-} while(0)
+#define CHECK(cond)                                                                               \
+    do {                                                                                          \
+        if (!(cond)) {                                                                            \
+            fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, "Check condition failed: " #cond); \
+            abort();                                                                              \
+        }                                                                                         \
+    } while (0)
 
 /**
  * Check macro that does nothing in normal non-verify builds but crashes in verify builds.
