@@ -35,6 +35,8 @@ UTREEXO_FUZZ_SOURCES_INT += %reldir%/src/fuzz/batchproof.cpp
 UTREEXO_FUZZ_SOURCES_INT += %reldir%/src/fuzz/pollard.cpp
 
 UTREEXO_BENCH_SOURCES_INT = 
+UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/pollard.cpp
+UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/ram_forest.cpp
 UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/bench_utreexo.cpp
 UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/bench.cpp
 UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/bench.h
@@ -42,3 +44,4 @@ UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/nanobench.cpp
 UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/nanobench.h
 UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/util/args.h
 UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/util/args.cpp
+UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/util/leaves.h
