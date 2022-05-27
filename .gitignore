@@ -9,11 +9,13 @@
 *.swp
 test_utreexo
 .vscode
+.DS_Store
 compile_commands.json
 .cache
 .dirstamp
 make
 test-verify
+bench_utreexo
 
 # autoreconf
 Makefile

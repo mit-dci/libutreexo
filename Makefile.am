@@ -49,3 +49,12 @@ fuzz_CPPFLAGS = -I$(srcdir)/src -I$(srcdir)/fuzz $(AM_CPPFLAGS) $(RELEASE_DEFINE
 fuzz_CXXFLAGS = $(AM_CXXFLAGS)
 fuzz_LDADD = $(LIBUTREEXO)
 fuzz_LDFLAGS = $(AM_LDFLAGS)
+
+if ENABLE_BENCH
+bin_PROGRAMS = bench_utreexo
+bench_utreexo_SOURCES = ${UTREEXO_BENCH_SOURCES_INT}
+bench_utreexo_CPPFLAGS = -I$(srcdir)/src $(AM_CPPFLAGS)
+bench_utreexo_CXXFLAGS = $(AM_CXXFLAGS)
+bench_utreexo_LDADD = $(LIBUTREEXO)
+bench_utreexo_LDFLAGS = $(AM_LDFLAGS)
+endif

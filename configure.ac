@@ -31,6 +31,11 @@ AC_ARG_ENABLE([debug],
     [enable_debug=$enableval],
     [enable_debug=no])
 
+AC_ARG_ENABLE(bench,
+    AS_HELP_STRING([--disable-bench],[do not compile benchmarks (default is to compile)]),
+    [use_bench=$enableval],
+    [use_bench=yes])
+
 AC_ARG_ENABLE([fuzz],
     AS_HELP_STRING([--enable-fuzz],
     [build for fuzzing (default no). enabling this will disable all other targets.]),
@@ -67,6 +72,7 @@ AC_DEFUN([SUPPRESS_WARNINGS],
 
 if test x$enable_fuzz = xyes; then
   use_tests=no
+  use_bench=no
   ## TODO make these configurable
   SANITIZER_LDFLAGS="-fsanitize=fuzzer,address,undefined"
   SANITIZER_CXXFLAGS="-fsanitize=fuzzer,address,undefined"
@@ -74,6 +80,7 @@ fi
 
 if test x$enable_fuzz_cov = xyes; then
   use_tests=no
+  use_bench=no
   CXXFLAGS="$CXXFLAGS -fprofile-instr-generate -fcoverage-mapping"
 fi
 
@@ -167,6 +174,7 @@ AC_SUBST(RELEASE_DEFINES)
 AC_SUBST(SANITIZER_LDFLAGS)
 AC_SUBST(SANITIZER_CXXFLAGS)
 AM_CONDITIONAL([USE_TESTS], [test x"$use_tests" != x"no"])
+AM_CONDITIONAL([ENABLE_BENCH], [test "$use_bench" = "yes"])
 AM_CONDITIONAL([ENABLE_FUZZ], [test x"$enable_fuzz" != x"no"])
 AC_OUTPUT
 
