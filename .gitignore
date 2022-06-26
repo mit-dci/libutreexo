@@ -16,6 +16,7 @@ compile_commands.json
 make
 test-verify
 bench_utreexo
+profiling_demo
 
 # autoreconf
 Makefile
