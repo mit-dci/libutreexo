@@ -18,6 +18,11 @@ test-verify
 bench_utreexo
 profiling_demo
 
+# flamegraphs
+*.stacks
+*.folded
+*.svg
+
 # autoreconf
 Makefile
 Makefile.in
