@@ -45,3 +45,6 @@ UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/nanobench.h
 UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/util/args.h
 UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/util/args.cpp
 UTREEXO_BENCH_SOURCES_INT += %reldir%/src/bench/util/leaves.h
+
+UTREEXO_PROFILING_DEMO_SOURCES_INT = 
+UTREEXO_PROFILING_DEMO_SOURCES_INT += %reldir%/src/profiling_demo/profiling_demo.cpp

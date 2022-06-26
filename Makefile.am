@@ -5,6 +5,8 @@ AM_LDFLAGS = $(SANITIZER_LDFLAGS)
 
 include sources.mk
 
+bin_PROGRAMS =
+
 #include_HEADERS = $(UTREEXO_DIST_HEADER_INT)
 #include_HEADERS = $(UTREEXO_DIST_HEADER_INT) $(UTREEXO_LIB_HEADERS_INT)
 
@@ -51,10 +53,19 @@ fuzz_LDADD = $(LIBUTREEXO)
 fuzz_LDFLAGS = $(AM_LDFLAGS)
 
 if ENABLE_BENCH
-bin_PROGRAMS = bench_utreexo
+bin_PROGRAMS += bench_utreexo
 bench_utreexo_SOURCES = ${UTREEXO_BENCH_SOURCES_INT}
 bench_utreexo_CPPFLAGS = -I$(srcdir)/src $(AM_CPPFLAGS)
 bench_utreexo_CXXFLAGS = $(AM_CXXFLAGS)
 bench_utreexo_LDADD = $(LIBUTREEXO)
 bench_utreexo_LDFLAGS = $(AM_LDFLAGS)
+endif
+
+if ENABLE_PROFILING
+bin_PROGRAMS += profiling_demo
+profiling_demo_SOURCES = ${UTREEXO_PROFILING_DEMO_SOURCES_INT}
+profiling_demo_CPPFLAGS = -I$(srcdir)/src $(AM_CPPFLAGS)
+profiling_demo_CXXFLAGS = $(AM_CXXFLAGS)
+profiling_demo_LDADD = $(LIBUTREEXO)
+profiling_demo_LDFLGS = $(AM_LDFLAGS)
 endif

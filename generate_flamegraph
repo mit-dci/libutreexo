@@ -1,0 +1,71 @@
+#!/bin/bash
+
+# This script generates flame graphs by using DTrace to sample the active stack frames of the
+# specified process and then https://github.com/brendangregg/FlameGraph to convert the
+# stack traces into the flame graph.
+# Note: On all current MacOS versions System Integrity Protection (SIP) is enabled by default and
+#       prevents most uses of dtrace. The usual way to make dtrace work on MacOS is to boot into
+#       recovery mode and disable some of the SIP protections with `csrutil enable --without dtrace`
+
+# The specified process is located at `src/profiling_demo/profiling_demo.cpp` and is build by using
+# the --enable-profiling-demo flag. `profiling_demo` is the default process but there is also the
+# option to generate flame graphs for individual benchmarks using
+# `./generate_flamegraph <durations(seconds)> bench_utreexo <benchmark-name>`
+
+# this is based off some work by fanquake: https://github.com/fanquake/core-review/tree/master/flamegraph
+# NOTE: for this to work, you need to clone the Flame Graph repo and set the appropriate variable
+ABSOLUTE_PATH_TO_FLAME_GRAPH_REPO="<ADD_PATH>"
+
+OUTPUT_FOLDER="flamegraphs" #relative path to flamegraph output
+DURATION=${1:-30}           # profiling duration in seconds
+
+# Determine for what process a flame graph will be generated
+DEFAULT_PROCESS="profiling_demo"
+SECONDARY_PROCESS="bench_utreexo"
+FILE=${2:-$DEFAULT_PROCESS}
+FLAMEGRAPH_TITLE="Utreexo (${FILE})"
+PROCESS_CMD="./$FILE" # the process for which profiling will run
+
+if [ "$FILE" == $SECONDARY_PROCESS ]; then
+    # there is also the option to generate flamegraph for a specific benchmark
+    [ -z "$3" ] && {
+        echo "If you want to profile bench_utreexo you need to also provide the name of the benchmark"
+        echo "e.g ./generate_flamegraph 30 bench_utreexo RemoveElementsForest"
+        exit 1
+    }
+    # the profiling duration matches the minimum runtime of the benchmark
+    PROCESS_CMD="${PROCESS_CMD} -filter=${3}.* -min_time=$((DURATION * 1000))"
+    FLAMEGRAPH_TITLE="${FLAMEGRAPH_TITLE} ${3}"
+fi
+
+NOW=$(date '+%F_%H:%M:%S') # timestamp
+OUTPUT="$(pwd)/${OUTPUT_FOLDER}/${NOW}_flamegraph"
+
+# Verify that required files exists
+[ "$FILE" == $DEFAULT_PROCESS ] && [ ! -f "$FILE" ] && {
+    echo "Profiling demo not found. To build use -enable-profiling-demo"
+    exit 1
+}
+[ "$FILE" == $SECONDARY_PROCESS ] && [ ! -f "$FILE" ] && {
+    echo "Benchmarks executable not found. Make sure to build with benchmarks enabled"
+    exit 1
+}
+[ ! -f "${ABSOLUTE_PATH_TO_FLAME_GRAPH_REPO}/stackcollapse.pl" ] || [ ! -f "${ABSOLUTE_PATH_TO_FLAME_GRAPH_REPO}/flamegraph.pl" ] && {
+    echo "The specified path for the FlameGraph repo does not contain the neccessary files"
+    echo "Make sure that 'ABSOLUTE_PATH_TO_FLAME_GRAPH_REPO=${ABSOLUTE_PATH_TO_FLAME_GRAPH_REPO}' is the correct path"
+    exit 1
+}
+
+# Profiling
+mkdir -p $OUTPUT_FOLDER # create output directory if not exists
+sudo true               # make sure that we clear sudo's password prompt before we start running anything time-sensitive
+$PROCESS_CMD &          # run the specified process in the background
+echo "Profiling of $PROCESS_CMD has started, capturing stackframes for ${DURATION}s..."
+# capture $DURATION worth of stackframes using DTrace at 99 Hertz for the specified process
+sudo dtrace -x ustackframes=100 -o "${OUTPUT}.stacks" -n 'profile-99 /pid == $1 && arg1/ { @[ustack()] = count(); } $2 { exit(0); }' $! "tick-${DURATION}s"
+kill $! # kill profiling demo otherwise it will run for ever
+
+# Converting stack traces into the flame graph
+"${ABSOLUTE_PATH_TO_FLAME_GRAPH_REPO}"/stackcollapse.pl "${OUTPUT}.stacks" >"${OUTPUT}.folded"
+"${ABSOLUTE_PATH_TO_FLAME_GRAPH_REPO}"/flamegraph.pl "${OUTPUT}.folded" --title "$FLAMEGRAPH_TITLE" --width 1600 >"${OUTPUT}.svg"
+echo "Generated flame graph can be found at $OUTPUT"

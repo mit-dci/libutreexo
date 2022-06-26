@@ -36,6 +36,11 @@ AC_ARG_ENABLE(bench,
     [use_bench=$enableval],
     [use_bench=yes])
 
+AC_ARG_ENABLE(profiling-demo,
+    AS_HELP_STRING([--enable-profiling-demo],[build profiling demo (default is no).]),
+    [enable_profiling=$enableval],
+    [enable_profiling=no])
+
 AC_ARG_ENABLE([fuzz],
     AS_HELP_STRING([--enable-fuzz],
     [build for fuzzing (default no). enabling this will disable all other targets.]),
@@ -175,6 +180,18 @@ AC_SUBST(SANITIZER_LDFLAGS)
 AC_SUBST(SANITIZER_CXXFLAGS)
 AM_CONDITIONAL([USE_TESTS], [test x"$use_tests" != x"no"])
 AM_CONDITIONAL([ENABLE_BENCH], [test "$use_bench" = "yes"])
+AM_CONDITIONAL([ENABLE_PROFILING], [test "$enable_profiling" = "yes"])
 AM_CONDITIONAL([ENABLE_FUZZ], [test x"$enable_fuzz" != x"no"])
 AC_OUTPUT
 
+echo
+echo "Options used to compile:"
+if test $enable_fuzz = "no"; then
+    echo "  with test       = $use_tests"
+else
+    echo "  with test       = not building test_verify because fuzzing is enabled"
+fi
+echo "  with bench      = $use_bench"
+echo "  debug enabled   = $enable_debug"
+echo "  profiling demo  = $enable_profiling"
+echo
