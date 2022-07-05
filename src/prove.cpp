@@ -8,7 +8,7 @@ bool AccumulatorImpl::Prove(BatchProof<Hash>& proof, const std::vector<Hash>& ta
 {
     if (target_hashes.size() == 0) return true;
 
-    std::list<NodeAndMetadata> siblings;
+    std::map<uint64_t, const InternalNode*> proof_nodes;
     std::vector<uint64_t> targets;
 
     // Get all the siblings of the targets.
@@ -26,60 +26,35 @@ bool AccumulatorImpl::Prove(BatchProof<Hash>& proof, const std::vector<Hash>& ta
         }
 
         const uint64_t sibing_pos{m_current_state.Sibling(leaf_pos)};
-        InternalNode* sibling{ReadNode(sibing_pos)};
+        const InternalNode* sibling{ReadNode(sibing_pos)};
         if (!sibling) return false;
         CHECK_SAFE(sibling->IsDeadEnd());
 
-        siblings.emplace_back(*sibling, sibing_pos, false, m_current_state.RootIndex(sibing_pos));
+        proof_nodes.emplace(sibing_pos, sibling);
     }
 
-    uint8_t row{siblings.empty() ? (uint8_t)0 : m_current_state.DetectRow(siblings.front().GetPosition())};
-    auto row_change = [state = m_current_state, &row](const NodeAndMetadata& node_and_pos) {
-        return state.DetectRow(node_and_pos.GetPosition()) > row;
-    };
+    std::vector<Hash> proof_hashes;
 
     // Fetch all nodes contained in the proof by going upwards.
-    std::list<NodeAndMetadata> proof_nodes;
-    while (!siblings.empty()) {
-        siblings.sort(CompareNodeAndMetadataByPosition);
+    while (!proof_nodes.empty()) {
+        auto node_it{proof_nodes.begin()};
+        uint64_t node_pos{node_it->first};
+        const InternalNode* node{node_it->second};
+        proof_nodes.erase(node_it);
 
-        auto row_start = siblings.begin();
-        auto row_end = std::find_if(siblings.begin(), siblings.end(), row_change);
+        // Ignore roots.
+        if (!node->m_aunt) continue;
 
-        int next_row{row_end == siblings.end() ? (int)row : (int)m_current_state.DetectRow(row_end->GetPosition())};
-        while (row_start != row_end) {
-            bool more_than_one_left{std::next(row_start) != row_end && std::next(row_start, 2) != row_end};
-            if (more_than_one_left && // Maybe two siblings?
-                row_start->GetPosition() == m_current_state.Sibling(std::next(row_start, 1)->GetPosition())) {
-                ++row_start;
-                siblings.pop_front();
-            } else {
-                proof_nodes.push_back(*row_start);
-            }
-
-            if (row_start->GetNode().m_aunt && row_start->GetNode().m_aunt->m_aunt) {
-                const uint64_t aunt_pos{m_current_state.Sibling(m_current_state.Parent(row_start->GetPosition()))};
-                siblings.push_back(NodeAndMetadata{*row_start->GetNode().m_aunt, aunt_pos, false, row_start->GetRootIndex()});
-                next_row = (int)row + 1;
-            }
-
-            ++row_start;
-            siblings.pop_front();
+        if (proof_nodes.erase(m_current_state.Sibling(node_pos)) == 0) {
+            proof_hashes.push_back(node->m_hash);
         }
 
-        if (next_row >= MAX_TREE_HEIGHT) return false;
-        row = (uint8_t)next_row;
-    }
+        // Don't add roots back to proof_nodes.
+        if (!node->m_aunt->m_aunt) continue;
 
-    // TODO is this needed?
-    proof_nodes.sort(CompareNodeAndMetadataByPosition);
-
-    // Convert the proof nodes to hashes.
-    std::vector<Hash> proof_hashes;
-    proof_hashes.reserve(proof_nodes.size());
-    while (!proof_nodes.empty()) {
-        proof_hashes.push_back(proof_nodes.front().GetNode().m_hash);
-        proof_nodes.pop_front();
+        const uint64_t parent_pos{m_current_state.Parent(node_pos)};
+        const uint64_t aunt_pos{m_current_state.Sibling(parent_pos)};
+        proof_nodes.emplace(aunt_pos, node->m_aunt);
     }
 
     proof = BatchProof(targets, proof_hashes);

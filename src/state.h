@@ -82,8 +82,6 @@ public:
     std::pair<std::vector<uint64_t>, std::vector<uint64_t>>
     ProofPositions(const std::vector<uint64_t>& targets) const;
 
-    bool RemoveSiblings(std::vector<uint64_t>& result, const std::vector<uint64_t>& targets) const;
-    std::vector<uint64_t> SwaplessTransform(const std::vector<uint64_t>& targets) const;
     std::vector<uint64_t> SimpleProofPositions(const std::vector<uint64_t>& targets) const;
 
     // Functions for root stuff:
@@ -100,6 +98,8 @@ public:
     std::vector<uint64_t> RootPositions(uint64_t num_leaves) const;
 
     uint8_t RootIndex(uint64_t pos) const;
+
+    bool IsRoot(uint64_t pos) const;
 
     // Functions for rows:
 
