@@ -60,7 +60,7 @@ void AccumulatorImpl::PromoteSibling(InternalNode& parent, InternalNode& aunt, c
         aunt.m_nieces[0] = node->m_nieces[0];
         aunt.m_nieces[1] = node->m_nieces[1];
 
-        // The nodes nieces are now owned by the aunt.
+        // The nodes nieces (i.e. the siblings children) are now owned by the aunt.
         node->m_nieces[0] = nullptr;
         node->m_nieces[1] = nullptr;
 
@@ -78,7 +78,7 @@ void AccumulatorImpl::RemoveOne(const InternalNode& sibling, const uint64_t pos)
 {
     InternalNode* aunt{sibling.m_aunt};
     if (!aunt) {
-        // Mark the root as deleted by replacing its hash with the NULL_HASH.
+        // Mark the root as deleted by replacing its hash with the ZOMBIE_ROOT_HASH.
         uint8_t root_index{m_current_state.RootIndex(pos)};
         m_roots[root_index]->m_hash = ZOMBIE_ROOT_HASH;
         m_roots[root_index]->DeleteNiece(0);
@@ -107,33 +107,55 @@ bool AccumulatorImpl::Remove(const std::vector<uint64_t>& targets)
 {
     if (targets.size() == 0) return true;
 
-    // Make sure all the leaves we want to remove are cached.
+    // Hashes of the leaves that we want to remove.
     std::vector<Hash> target_hashes;
     target_hashes.reserve(targets.size());
+
+    // Siblings of the leaves that we want to remove.
+    std::map<uint64_t, InternalNode*> target_siblings;
     for (auto pos = targets.cbegin(); pos < targets.cend(); ++pos) {
-        const InternalNode* target_node = ReadNode(*pos);
+        // The leaves we want to remove (targets) have to be cached.
+        InternalNode* target_node{ReadNode(*pos)};
         if (!target_node) return false;
 
         auto leaf_it = m_cached_leaves.find(target_node->m_hash);
         if (leaf_it == m_cached_leaves.end()) return false;
         target_hashes.push_back(target_node->m_hash);
+
+        // The siblings of the leaves we want to remove have to be cached.
+        InternalNode* sibling{target_node->m_aunt ? ReadNode(m_current_state.Sibling(*pos)) : target_node};
+        if (!sibling) return false;
+
+        uint64_t sibling_pos{target_node->m_aunt ? m_current_state.Sibling(*pos) : *pos};
+        target_siblings.emplace(sibling_pos, sibling);
     }
 
-    std::vector<uint64_t> deletions = m_current_state.SwaplessTransform(targets);
+    while (!target_siblings.empty()) {
+        auto it{target_siblings.begin()};
+        const uint64_t pos{it->first};
+        InternalNode* sibling{it->second};
+        target_siblings.erase(it);
 
-    uint64_t next_num_leaves{m_current_state.m_num_leaves};
-    for (uint64_t deletion : deletions) {
-        // Read the sibling of the node to be deleted, unless we are deleting a root.
-        uint64_t read_pos{m_current_state.Sibling(deletion)};
-        const uint8_t row{m_current_state.DetectRow(deletion)};
-        if (m_current_state.HasRoot(row) && deletion == m_current_state.RootPosition(row)) {
-            read_pos = deletion;
+        if (sibling->m_aunt) {
+            // If we are not removing a root, then we check if we are removing
+            // two siblings.
+
+            auto node_it{target_siblings.find(m_current_state.Sibling(pos))};
+            if (node_it != target_siblings.end()) {
+                // If we are removing siblings then we can just remove the parent,
+                // so we add the aunt to `target_siblings`.
+                const uint64_t parent_pos{m_current_state.Parent(pos)};
+                const uint64_t aunt_pos{sibling->m_aunt->m_aunt ? m_current_state.Sibling(parent_pos) : parent_pos};
+                target_siblings.emplace(aunt_pos, sibling->m_aunt);
+
+                target_siblings.erase(node_it);
+                continue;
+            }
+
+            RemoveOne(*sibling, m_current_state.Sibling(pos));
+        } else {
+            RemoveOne(*sibling, pos);
         }
-
-        const InternalNode* sibling{ReadNode(read_pos)};
-        assert(sibling);
-
-        RemoveOne(*sibling, deletion);
     }
 
     // All leaves that are supposed to be deleted exist in the forest. Now we
@@ -141,16 +163,6 @@ bool AccumulatorImpl::Remove(const std::vector<uint64_t>& targets)
     for (const Hash& target_hash : target_hashes) {
         RemoveMemorableMarkerFromLeaf(target_hash);
     }
-    target_hashes.clear();
-
-    // Remove roots that were marked for deletion. RemoveOne marks roots
-    // for deletion by replacing them with null pointers in m_roots.
-    std::vector<InternalNode*> new_roots;
-    for (int i = 0; i < m_roots.size(); ++i) {
-        if (m_roots[i]) new_roots.push_back(m_roots[i]);
-    }
-    m_roots = new_roots;
-    m_current_state = ForestState(next_num_leaves);
 
     return true;
 }

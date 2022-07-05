@@ -74,7 +74,7 @@ public:
         m_hash = ParentHash(sibling.m_nieces[0]->m_hash, sibling.m_nieces[1]->m_hash);
     }
 
-    bool IsDeadEnd() { return !m_nieces[0] && !m_nieces[1]; }
+    bool IsDeadEnd() const { return !m_nieces[0] && !m_nieces[1]; }
 };
 
 struct NodeAndMetadata {
@@ -129,7 +129,15 @@ public:
             m_roots.push_back(new InternalNode(root_hash));
         }
     }
-    virtual ~AccumulatorImpl() {}
+    virtual ~AccumulatorImpl()
+    {
+        m_cached_leaves.clear();
+        while (!m_roots.empty()) {
+            InternalNode* root{m_roots.back()};
+            m_roots.pop_back();
+            delete root;
+        }
+    }
 
     InternalNode* WriteNode(uint64_t pos, const Hash& hash, bool allow_overwrite = false)
     {
@@ -444,8 +452,7 @@ public:
 
     // verify.cpp
 
-    bool IngestProof(std::vector<InternalNode*>& target_nodes, const BatchProof<Hash>& proof, const std::vector<Hash>& target_hashes);
-    bool VerifyRow(std::vector<NodeAndMetadata>::iterator start, std::vector<NodeAndMetadata>::iterator end, std::vector<NodeAndMetadata>& next_row, uint16_t root_counts[64]);
+    bool IngestProof(std::map<uint64_t, InternalNode*>& verification_map, const BatchProof<Hash>& proof, const std::vector<Hash>& target_hashes);
 
     /** Implement `Accumulator` interface */
 

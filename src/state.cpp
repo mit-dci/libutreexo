@@ -4,6 +4,7 @@
 #include <check.h>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <state.h>
 
 namespace utreexo {
@@ -243,70 +244,32 @@ ForestState::ProofPositions(const std::vector<uint64_t>& targets) const
     return std::make_pair(proof, computed);
 }
 
-bool ForestState::RemoveSiblings(std::vector<uint64_t>& result, const std::vector<uint64_t>& targets) const
-{
-    if (targets.size() == 0) return {};
-
-    std::vector<uint64_t> parents;
-    std::vector<uint64_t> remainder;
-    for (int i = 0; i < targets.size(); ++i) {
-        if (i < targets.size() - 1 && targets[i] == Sibling(targets[i + 1])) {
-            parents.push_back(Parent(targets[i]));
-            ++i;
-        } else {
-            remainder.push_back(targets[i]);
-        }
-    }
-
-    std::merge(remainder.begin(), remainder.end(), parents.begin(), parents.end(), std::back_inserter(result));
-    return parents.size() > 0;
-}
-
-std::vector<uint64_t> ForestState::SwaplessTransform(const std::vector<uint64_t>& targets) const
-{
-    std::vector<uint64_t> deletions, targets_final = targets;
-    while (RemoveSiblings(deletions, targets_final)) {
-        targets_final = deletions;
-        deletions.clear();
-    }
-
-    return targets_final;
-}
-
 std::vector<uint64_t> ForestState::SimpleProofPositions(const std::vector<uint64_t>& targets) const
 {
-    // Collect all proof positions for each target individually
-    std::vector<uint64_t> all_positions;
+    std::set<uint64_t> proof_positions;
     for (uint64_t target : targets) {
-        uint8_t root_index, path_length;
-        std::tie(root_index, path_length, std::ignore) = Path(target);
-        const uint64_t root_pos{RootPositions()[root_index]};
-
-        if (root_pos == target) continue;
-
-        while (target != root_pos && path_length > 0) {
-            all_positions.push_back(Sibling(target));
-            target = Parent(target);
-            --path_length;
-        }
-
-        // Remove duplicates
-        std::sort(all_positions.begin(), all_positions.end());
-        auto last = std::unique(all_positions.begin(), all_positions.end());
-        all_positions.erase(last, all_positions.end());
+        if (IsRoot(target)) continue;
+        proof_positions.emplace(Sibling(target));
     }
 
-    // Remove siblings
-    std::vector<uint64_t> proof_positions;
-    for (int i = 0; i < all_positions.size(); ++i) {
-        if (i < all_positions.size() - 1 && all_positions[i] == Sibling(all_positions[i + 1])) {
-            ++i;
-        } else {
-            proof_positions.push_back(all_positions[i]);
+    std::vector<uint64_t> result;
+    while (!proof_positions.empty()) {
+        auto proof_pos_it{proof_positions.begin()};
+        uint64_t pos{*proof_pos_it};
+        proof_positions.erase(proof_pos_it);
+
+        if (IsRoot(pos)) continue;
+
+        if (proof_positions.erase(Sibling(pos)) == 0) {
+            result.push_back(pos);
         }
+
+        const uint64_t parent_pos{Parent(pos)};
+        if (IsRoot(parent_pos)) continue;
+        proof_positions.emplace(Sibling(parent_pos));
     }
 
-    return proof_positions;
+    return result;
 }
 
 // roots
@@ -369,6 +332,15 @@ uint8_t ForestState::RootIndex(uint64_t pos) const
     return root_index;
 }
 
+bool ForestState::IsRoot(uint64_t pos) const
+{
+    uint8_t row{DetectRow(pos)};
+    if (!HasRoot(row)) {
+        return false;
+    }
+
+    return RootPosition(row) == pos;
+}
 
 // rows
 
