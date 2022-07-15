@@ -18,7 +18,7 @@ Hash HashFromStr(const std::string& hex);
 
 // https://github.com/bitcoin/bitcoin/blob/7f653c3b22f0a5267822eec017aea6a16752c597/src/util/strencodings.cpp#L580
 template <class T>
-std::string HexStr(const T s)
+static std::string HexStr(const T s)
 {
     std::string rv;
     static constexpr char hexmap[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
@@ -31,4 +31,17 @@ std::string HexStr(const T s)
     return rv;
 }
 
+static void MarkLeavesAsMemorable(std::vector<Leaf>& leaves)
+{
+    for (Leaf& leaf : leaves) {
+        leaf.second = true;
+    }
+}
+
+static std::vector<Leaf> CopyLeavesAsMemorable(std::vector<Leaf>& leaves)
+{
+    std::vector<Leaf> copy{leaves.begin(), leaves.end()};
+    MarkLeavesAsMemorable(copy);
+    return copy;
+}
 #endif

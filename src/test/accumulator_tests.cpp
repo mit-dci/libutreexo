@@ -1,132 +1,236 @@
-#include "accumulator.h"
-#include "batchproof.h"
 #include "utils.h"
-#include "v1/pollard.h"
-#include "v1/ram_forest.h"
+#include "utreexo.h"
 #include <boost/test/unit_test.hpp>
 #include <chrono>
 #include <cstring>
 #include <random>
 #include <vector>
 
-#include "state.h"
-
 BOOST_AUTO_TEST_SUITE(accumulator_tests)
 
 using namespace utreexo;
 
+using Hash = std::array<uint8_t, 32>;
 using Leaf = std::pair<Hash, bool>;
 using BatchProof = BatchProof<Hash>;
-using UndoBatch = UndoBatch<Hash>;
-
-UndoBatch unused_undo;
 
 // Simple test that adds and deletes a bunch of elements from both a forest and pollard.
 BOOST_AUTO_TEST_CASE(simple)
 {
-    Pollard pruned(0);
-    RamForest full(0);
+    auto pruned{MakeEmpty<Hash>()};
+    auto full{MakeEmpty<Hash>()};
 
     // 1. Add 64 elements
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 64);
 
-    BOOST_CHECK(pruned.Modify(leaves, {}));
-    BOOST_CHECK(full.Modify(unused_undo, leaves, {}));
+    BOOST_CHECK(pruned->Modify(leaves, {}));
+    MarkLeavesAsMemorable(leaves);
+    BOOST_CHECK(full->Modify(leaves, {}));
 
-    // 2. Check that roots of the forest and pollard match
-    std::vector<Hash> pruned_roots, full_roots;
-    pruned.Roots(pruned_roots);
-    full.Roots(full_roots);
+    {
+        // 2. Check that roots of the forest and pollard match
+        const auto [pruned_root_bits, pruned_roots] = pruned->GetState();
+        const auto [full_root_bits, full_roots] = full->GetState();
 
-    BOOST_CHECK(pruned_roots.size() == 1);
-    BOOST_CHECK(full_roots.size() == 1);
+        BOOST_CHECK(pruned_root_bits == full_root_bits);
+        BOOST_CHECK(pruned_roots.size() == 1);
+        BOOST_CHECK(full_roots.size() == 1);
 
-    BOOST_CHECK(pruned_roots[0] == HashFromStr("6692c043bfd19c717a07a931833b1748cff69aa4349110948907ab125f744c25"));
-    BOOST_CHECK(pruned_roots == full_roots);
+        BOOST_CHECK(pruned_roots[0] == HashFromStr("6692c043bfd19c717a07a931833b1748cff69aa4349110948907ab125f744c25"));
+        BOOST_CHECK(pruned_roots == full_roots);
+    }
 
     // 3. Prove elements 0, 2, 3 and 9 in the forest
     BatchProof proof;
     std::vector<Hash> leaf_hashes = {leaves[0].first, leaves[2].first, leaves[3].first, leaves[9].first};
-    BOOST_CHECK(full.Prove(proof, leaf_hashes));
+    BOOST_CHECK(full->Prove(proof, leaf_hashes));
 
     // 4. Let the pollard verify the proof
-    BOOST_CHECK(pruned.Verify(proof, leaf_hashes));
+    BOOST_CHECK(pruned->Verify(proof, leaf_hashes));
 
     // 5. Delete the elements from both the forest and pollard
-    UndoBatch undo;
-    BOOST_CHECK(full.Modify(undo, {}, proof.GetSortedTargets()));
-    BOOST_CHECK(pruned.Modify({}, proof.GetSortedTargets()));
+    BOOST_CHECK(full->Modify({}, proof.GetSortedTargets()));
+    BOOST_CHECK(pruned->Modify({}, proof.GetSortedTargets()));
 
-    // 6. Check that the roots match after the deletion
-    pruned.Roots(pruned_roots);
-    full.Roots(full_roots);
+    {
+        // 6. Check that roots of the forest and pollard match
+        const auto [pruned_root_bits, pruned_roots] = pruned->GetState();
+        const auto [full_root_bits, full_roots] = full->GetState();
 
-    BOOST_CHECK(pruned_roots.size() == 4);
-    BOOST_CHECK(full_roots.size() == 4);
+        BOOST_CHECK(pruned_root_bits == full_root_bits);
+        BOOST_CHECK(pruned_roots.size() == 1);
+        BOOST_CHECK(full_roots.size() == 1);
 
-    BOOST_CHECK(pruned_roots[0] == HashFromStr("b868b67e97610dc20fd4052d08c390cf8fc95eef3c7ee717aebc85a02e81cd68"));
-    BOOST_CHECK(pruned_roots[1] == HashFromStr("4a812f9dc3a1691f4b6de9ec07ecb2014a3c8839182592549a2d8508631cd908"));
-    BOOST_CHECK(pruned_roots[2] == HashFromStr("891899fa84a5c8659b007ce655b7cc5cf4b92493477db1095518cfc732024ef2"));
-    BOOST_CHECK(pruned_roots[3] == HashFromStr("aee875faf7276a9817d0db6195414118b1348697d2e2abd4b3fcee46c579833b"));
-    BOOST_CHECK(pruned_roots == full_roots);
-
-    // Undo last modification
-    BOOST_CHECK(full.Undo(undo));
-
-    full.Roots(full_roots);
-    BOOST_CHECK(full_roots.size() == 1);
-    BOOST_CHECK(full_roots[0] == HashFromStr("6692c043bfd19c717a07a931833b1748cff69aa4349110948907ab125f744c25"));
+        BOOST_CHECK(pruned_roots[0] == HashFromStr("7608aecffadc9b82fd2482d0c32ef0389236ceaf25bf7287d2caa26ccd2716a5"));
+        BOOST_CHECK(pruned_roots == full_roots);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(singular_leaf_prove)
 {
-    Pollard pruned(0);
-    RamForest full(0);
+    auto pruned{MakeEmpty<Hash>()};
+    auto full{MakeEmpty<Hash>()};
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 8);
 
     // Add test leaves, dont delete any.
-    full.Modify(unused_undo, leaves, {});
-    pruned.Modify(leaves, {});
-    // full.PrintRoots();
+    BOOST_CHECK(pruned->Modify(leaves, {}));
+    MarkLeavesAsMemorable(leaves);
+    BOOST_CHECK(full->Modify(leaves, {}));
 
     for (Leaf& leaf : leaves) {
         BatchProof proof;
-        full.Prove(proof, {leaf.first});
-        BOOST_CHECK(pruned.Verify(proof, {leaf.first}));
+        BOOST_CHECK(full->Prove(proof, {leaf.first}));
 
-        // Delete all cached leaves.
-        pruned.Prune();
+        BatchProof proof_from_pruned;
+        BOOST_CHECK(!pruned->Prove(proof, {leaf.first}));
+        BOOST_CHECK(pruned->Verify(proof, {leaf.first}));
+        BOOST_CHECK(pruned->Prove(proof_from_pruned, {leaf.first}));
+        BOOST_CHECK(proof == proof_from_pruned);
+        BOOST_CHECK(pruned->GetCachedLeaves().size() == 1);
+
+        // Delete cached leaf.
+        pruned->Uncache(leaf.first);
+        BOOST_CHECK(!pruned->Prove(proof, {leaf.first}));
+        BOOST_CHECK(pruned->GetCachedLeaves().size() == 0);
     }
 }
 
 BOOST_AUTO_TEST_CASE(simple_modified_proof)
 {
-    Pollard pruned(0);
-    RamForest full(0);
+    auto pruned{MakeEmpty<Hash>()};
+    auto full{MakeEmpty<Hash>()};
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 8);
 
     // Add test leaves, dont delete any.
-    full.Modify(unused_undo, leaves, {});
-    pruned.Modify(leaves, {});
-    // full.PrintRoots();
+    BOOST_CHECK(pruned->Modify(leaves, {}));
+    MarkLeavesAsMemorable(leaves);
+    BOOST_CHECK(full->Modify(leaves, {}));
 
     BatchProof proof;
-    full.Prove(proof, {leaves[0].first});
-    std::vector<Hash> modified_hashes = proof.GetHashes();
+    BOOST_CHECK(full->Prove(proof, {leaves[0].first}));
+    BOOST_CHECK(pruned->Verify(proof, {leaves[0].first}));
+    pruned->Uncache(leaves[0].first);
+
+    std::vector<Hash> modified_hashes{proof.GetHashes()};
     // Fill the last hash with zeros.
     // This should cause verification to fail.
     modified_hashes.back().fill(0);
     BatchProof invalid(proof.GetSortedTargets(), modified_hashes);
     // Assert that verification fails.
-    BOOST_CHECK(pruned.Verify(invalid, {leaves[0].first}) == false);
+    BOOST_CHECK(!pruned->Verify(invalid, {leaves[0].first}));
 }
 
-BOOST_AUTO_TEST_CASE(simple_cached_proof)
+BOOST_AUTO_TEST_CASE(simple_blockchain)
+{
+    auto pruned{MakeEmpty<Hash>()};
+    auto full{MakeEmpty<Hash>()};
+
+    // Simulate the addition of 1000 blocks with a uniformly distributed
+    // number of additions and deletions in each block
+    int num_blocks = 1000;
+    int num_max_adds = 128;
+    int num_max_dels = 128;
+    int unique_hash = 0;
+
+    std::default_random_engine generator;
+    std::uniform_int_distribution<int> add_distribution(1, num_max_adds);
+
+    // Add genesis leaves to have something to delete on first iteration
+    {
+        std::vector<Leaf> adds;
+        CreateTestLeaves(adds, 8, unique_hash);
+        unique_hash += adds.size();
+        BOOST_CHECK(pruned->Modify(adds, {}));
+        MarkLeavesAsMemorable(adds);
+        BOOST_CHECK(full->Modify(adds, {}));
+    }
+
+    // TODO: Process blocks while keeping the UndoBatch on every step in order to
+    // rollback all modifications in the end
+    // std::vector<std::pair<UndoBatch, std::vector<Hash>>> undos;
+
+    for (int i = 0; i < num_blocks; i++) {
+        // Create leaves to-add
+        int num_adds = add_distribution(generator);
+        std::vector<Leaf> adds;
+        CreateTestLeaves(adds, num_adds, unique_hash);
+        unique_hash += adds.size();
+
+        // Select leaves for deletion
+        std::vector<Hash> cached_leaf_hashes{full->GetCachedLeaves()};
+        std::vector<Hash> leaf_hashes;
+        int min = 0, max = std::min(num_max_dels, (int)cached_leaf_hashes.size() - 1);
+        while (max > 0 && min != max) {
+            std::uniform_int_distribution<int> del_distribution(min, max);
+            int del_index = del_distribution(generator);
+            leaf_hashes.push_back(cached_leaf_hashes[del_index]);
+            min = std::min(max, del_index + 1);
+        }
+
+        BatchProof proof;
+        BOOST_CHECK(full->Prove(proof, leaf_hashes));
+        BOOST_CHECK(full->Modify(CopyLeavesAsMemorable(adds), proof.GetSortedTargets()));
+
+        // TODO: Keep the UndoBatch with the roots it will rollback to
+        // undos.emplace_back(undo, roots);
+
+        // TODO Undo and redo last modification to test a rollback
+        //BOOST_CHECK(full.Undo(undo));
+        // full.Roots(roots); // roots after the rollback
+        // roots after the rollback should match those kept with the UndoBatch
+        // BOOST_CHECK(roots == undos.back().second);
+        // BOOST_CHECK(full->Modify(CopyLeavesAsMemorable(adds), proof.GetSortedTargets()));
+
+        // Verify the proof with pollard and modify pollard to new state
+        BOOST_TEST(pruned->Verify(proof, leaf_hashes));
+
+        // The pollard should be able to produce a proof for any of the cached leaves.
+        {
+            const auto [root_bits, roots] = pruned->GetState();
+            auto pruned_copy{Make<Hash>(root_bits, roots)};
+
+            for (const Hash& hash : leaf_hashes) {
+                BatchProof leaf_proof;
+                BOOST_CHECK(pruned->Prove(leaf_proof, {hash}));
+                BOOST_CHECK(pruned_copy->Verify(leaf_proof, {hash}));
+                pruned_copy->Uncache(hash);
+            }
+        }
+
+        BOOST_CHECK(pruned->Modify(adds, proof.GetSortedTargets()));
+        BOOST_CHECK(pruned->GetCachedLeaves().size() == 0);
+        {
+            const auto [pruned_root_bits, pruned_roots] = pruned->GetState();
+            const auto [full_root_bits, full_roots] = full->GetState();
+
+            BOOST_CHECK(pruned_root_bits == full_root_bits);
+            BOOST_CHECK(pruned_roots == full_roots);
+        }
+
+        if (proof.GetTargets().size() > 0) BOOST_CHECK(!pruned->Verify(proof, leaf_hashes));
+    }
+
+    // std::vector<Hash> roots;
+    // TODO Rollback all modifications and check that we arrive at the initial state.
+    // int height = num_blocks - 1;
+    // for (auto it = undos.crbegin(); it != undos.crend(); ++it) {
+    //     const UndoBatch& undo = it->first;
+    //     BOOST_CHECK(full.Undo(undo));
+    //     roots.clear();
+    //
+    //     full.Roots(roots);
+    //     BOOST_CHECK(roots == it->second);
+    //     --height;
+    // }
+    // BOOST_CHECK(height == -1);
+}
+
+/*BOOST_AUTO_TEST_CASE(simple_cached_proof)
 {
     Pollard pruned(0);
     RamForest full(0);
@@ -256,138 +360,6 @@ BOOST_AUTO_TEST_CASE(hash_to_known_invalid_proof)
     BOOST_CHECK(!pruned.Verify(BatchProof(proof.GetSortedTargets(), {invalid_hash}), leaf_hashes));
     BOOST_CHECK(pruned.Verify(proof, leaf_hashes));
     BOOST_CHECK(pruned.NumCachedLeaves() == 6); // cached: 0, 1, 4, 5, 6, 7
-}
-
-BOOST_AUTO_TEST_CASE(simple_blockchain)
-{
-    RamForest full(0);
-    Pollard pruned(0);
-
-    // Simulate the addition of 1000 blocks with a uniformly distributed
-    // number of additions and deletions in each block
-    int num_blocks = 1000;
-    int num_max_adds = 128;
-    int num_max_dels = 128;
-    int unique_hash = 0;
-
-    std::default_random_engine generator;
-    std::uniform_int_distribution<int> add_distribution(1, num_max_adds);
-
-    // Add genesis leaves to have something to delete on first iteration
-    {
-        std::vector<Leaf> adds;
-        CreateTestLeaves(adds, 8, unique_hash);
-        unique_hash += adds.size();
-        full.Modify(unused_undo, adds, {});
-        pruned.Modify(adds, {});
-    }
-
-    // Process blocks while keeping the UndoBatch on every step in order to
-    // rollback all modifications in the end
-    std::vector<std::pair<UndoBatch, std::vector<Hash>>> undos;
-    for (int i = 0; i < num_blocks; i++) {
-        // Create leaves to-add
-        int num_adds = add_distribution(generator);
-        std::vector<Leaf> adds;
-        CreateTestLeaves(adds, num_adds, unique_hash);
-        unique_hash += adds.size();
-
-        // Select leaves for deletion
-        std::vector<Hash> leaf_hashes;
-        int min = 0, max = full.NumLeaves() - 1;
-        while (max > 0 && min != max) {
-            std::uniform_int_distribution<int> del_distribution(min, max);
-            int del_index = del_distribution(generator);
-            leaf_hashes.push_back(full.GetLeaf(del_index));
-            min = del_index + 1 > max ? max : del_index + 1;
-        }
-
-        std::vector<Hash> roots;
-        full.Roots(roots); // roots before the modification
-
-        BatchProof proof;
-        UndoBatch undo;
-        BOOST_CHECK(full.Prove(proof, leaf_hashes));
-        BOOST_CHECK(full.Modify(undo, adds, proof.GetSortedTargets()));
-
-        // Keep the UndoBatch with the roots it will rollback to
-        undos.emplace_back(undo, roots);
-
-        // Undo and redo last modification to test a rollback
-        BOOST_CHECK(full.Undo(undo));
-        full.Roots(roots); // roots after the rollback
-        // roots after the rollback should match those kept with the UndoBatch
-        BOOST_CHECK(roots == undos.back().second);
-
-        BOOST_CHECK(full.Modify(unused_undo, adds, proof.GetSortedTargets()));
-
-        // Verify the proof with pollard and modify pollard to new state
-        BOOST_TEST(pruned.Verify(proof, leaf_hashes));
-        BOOST_CHECK(pruned.NumCachedLeaves() == leaf_hashes.size());
-
-        // The pollard should be able to produce a prove for any of the cached leaves.
-        {
-            std::vector<Hash> roots;
-            pruned.Roots(roots);
-            Pollard foo(roots, pruned.NumLeaves());
-
-            for (const Hash& hash : leaf_hashes) {
-                BatchProof leaf_proof;
-                BOOST_CHECK(pruned.Prove(leaf_proof, {hash}));
-                BOOST_CHECK(foo.Verify(leaf_proof, {hash}));
-                foo.Prune();
-            }
-        }
-
-        BOOST_CHECK(pruned.Modify(adds, proof.GetSortedTargets()));
-        BOOST_CHECK(pruned.NumCachedLeaves() == 0);
-
-        if (proof.GetTargets().size() > 0) BOOST_CHECK(!pruned.Verify(proof, leaf_hashes));
-
-        // check that roots match after modification
-        std::vector<Hash> pruned_roots, full_roots;
-        pruned.Roots(pruned_roots);
-        full.Roots(full_roots);
-        BOOST_CHECK(full_roots == pruned_roots);
-    }
-
-
-    std::vector<Hash> roots;
-    // Rollback all modifications and check that we arrive at the initial state.
-    int height = num_blocks - 1;
-    for (auto it = undos.crbegin(); it != undos.crend(); ++it) {
-        const UndoBatch& undo = it->first;
-        BOOST_CHECK(full.Undo(undo));
-        roots.clear();
-
-        full.Roots(roots);
-        BOOST_CHECK(roots == it->second);
-        --height;
-    }
-    BOOST_CHECK(height == -1);
-}
-
-BOOST_AUTO_TEST_CASE(pollard_restore)
-{
-    RamForest full(0);
-    Pollard pruned(0);
-
-    std::vector<Leaf> leaves;
-    CreateTestLeaves(leaves, 15);
-
-    full.Modify(unused_undo, leaves, {});
-    pruned.Modify(leaves, {});
-
-    BatchProof proof;
-    std::vector<Hash> leaf_hashes = {leaves[4].first, leaves[5].first, leaves[6].first, leaves[7].first};
-    BOOST_CHECK(full.Prove(proof, leaf_hashes));
-    BOOST_CHECK(pruned.Verify(proof, leaf_hashes));
-
-    std::vector<Hash> roots;
-    pruned.Roots(roots);
-
-    Pollard restored(roots, 15);
-    BOOST_CHECK(restored.Verify(proof, leaf_hashes));
 }
 
 BOOST_AUTO_TEST_CASE(pollard_remember)
@@ -550,6 +522,6 @@ BOOST_AUTO_TEST_CASE(add_memorable_and_remove)
     BOOST_CHECK(pruned.NumCachedLeaves() == 1);
 
     BOOST_CHECK(pruned.Modify({}, {0}));
-}
+}*/
 
 BOOST_AUTO_TEST_SUITE_END()

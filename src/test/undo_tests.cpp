@@ -1,7 +1,6 @@
-#include "accumulator.h"
-#include "batchproof.h"
-#include "state.h"
+#include "utreexo.h"
 #include "utils.h"
+#include "crypto/sha512.h"
 
 #include <boost/test/unit_test.hpp>
 #include <chrono>
@@ -12,59 +11,13 @@
 
 BOOST_AUTO_TEST_SUITE(swapless_tests)
 
-
 using namespace utreexo;
+using namespace utreexo::detail;
 
 using BatchProof = BatchProof<Hash>;
+using Hash = std::array<uint8_t, 32>;
 
-#define CHECK_VECTORS_EQUAL(c1, c2)                                                                    \
-    {                                                                                                  \
-        auto c1_copy{c1};                                                                              \
-        auto c2_copy{c2};                                                                              \
-        BOOST_CHECK_EQUAL_COLLECTIONS(c1_copy.begin(), c1_copy.end(), c2_copy.begin(), c2_copy.end()); \
-    }
-
-BOOST_AUTO_TEST_CASE(proof_positions)
-{
-    ForestState state(15);
-    /*
-     * xx
-     * |-------------------------------\
-     * 28                              xx
-     * |---------------\               |---------------\
-     * 24              25              26              xx
-     * |-------\       |-------\       |-------\       |-------\
-     * 16      17      18      19      20      21      22      xx
-     * |---\   |---\   |---\   |---\   |---\   |---\   |---\   |---\
-     * 00  01  02  03  04  05  06  07  08  09  10  11  12  13  14  xx
-     */
-
-    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({}), std::vector<uint64_t>{});
-    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({0}), std::vector<uint64_t>({1, 17, 25}));
-    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({14, 22, 26, 28}), std::vector<uint64_t>({}));
-    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}), std::vector<uint64_t>({}));
-    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({0, 2, 4, 6, 8, 10, 12, 14}), std::vector<uint64_t>({1, 3, 5, 7, 9, 11, 13}));
-    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({0, 12, 20, 25}), std::vector<uint64_t>({1, 13, 17, 21}));
-    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({4, 24}), std::vector<uint64_t>({5, 19}));
-}
-
-BOOST_AUTO_TEST_CASE(simple_remove)
-{
-    std::unique_ptr<Accumulator> full = MakeEmpty();
-
-    std::vector<Leaf> leaves;
-    CreateTestLeaves(leaves, 15);
-    for (Leaf& leaf : leaves) {
-        leaf.second = true;
-    }
-    BOOST_CHECK(full->Modify(leaves, {}));
-    BOOST_CHECK(full->GetCachedLeaves().size() == 15);
-
-    BOOST_CHECK(full->Modify({}, {14}));
-    BOOST_CHECK(!full->IsCached(leaves[14].first));
-}
-
-void PrintLeaves(Accumulator& acc)
+void PrintLeaves(Accumulator<Hash>& acc)
 {
     std::vector<Hash> leaves{acc.GetCachedLeaves()};
     std::cout << "cached leaves: " << std::endl;
@@ -73,7 +26,7 @@ void PrintLeaves(Accumulator& acc)
     }
 }
 
-void TestUndo(Accumulator& pruned, Accumulator& full, const std::vector<Leaf>& leaves, const std::vector<Hash>& deletions)
+/*void TestUndo(Accumulator<Hash>& pruned, Accumulator<Hash>& full, const std::vector<Leaf>& leaves, const std::vector<Hash>& deletions)
 {
     BatchProof proof;
     if (!deletions.empty()) {
@@ -98,10 +51,10 @@ void TestUndo(Accumulator& pruned, Accumulator& full, const std::vector<Leaf>& l
     BOOST_CHECK(state_before == full.GetState());
 }
 
-/*BOOST_AUTO_TEST_CASE(undo)
+BOOST_AUTO_TEST_CASE(undo)
 {
-    std::unique_ptr<Accumulator> full = MakeEmpty();
-    std::unique_ptr<Accumulator> pruned = MakeEmpty();
+    std::unique_ptr<Accumulator<Hash>> full = MakeEmpty<Hash>();
+    std::unique_ptr<Accumulator<Hash>> pruned = MakeEmpty<Hash>();
 
     std::vector<Leaf> leaves;
     CreateTestLeaves(leaves, 15);
@@ -138,8 +91,8 @@ void TestUndo(Accumulator& pruned, Accumulator& full, const std::vector<Leaf>& l
 /*BOOST_AUTO_TEST_CASE(simple)
 {
     for (int num_leaves = 1; num_leaves < 256; ++num_leaves) {
-        std::unique_ptr<Accumulator> full = MakeEmpty();
-        std::unique_ptr<Accumulator> pruned = MakeEmpty();
+        std::unique_ptr<Accumulator<Hash>> full = MakeEmpty<Hash>();
+        std::unique_ptr<Accumulator<Hash>> pruned = MakeEmpty<Hash>();
 
         std::vector<Leaf> leaves;
         CreateTestLeaves(leaves, num_leaves);
@@ -211,33 +164,5 @@ void TestUndo(Accumulator& pruned, Accumulator& full, const std::vector<Leaf>& l
         BOOST_CHECK(state == pruned->GetState());
     }
 }*/
-
-BOOST_AUTO_TEST_CASE(simple_modified_proof)
-{
-    std::unique_ptr<Accumulator> full = MakeEmpty();
-    std::unique_ptr<Accumulator> pruned = MakeEmpty();
-
-    std::vector<Leaf> leaves;
-    CreateTestLeaves(leaves, 8);
-
-    // Add test leaves, dont delete any.
-    BOOST_CHECK(pruned->Modify(leaves, {}));
-    for (Leaf& leaf : leaves) {
-        leaf.second = true;
-    }
-    BOOST_CHECK(full->Modify(leaves, {}));
-
-    BatchProof proof;
-    BOOST_CHECK(full->Prove(proof, {leaves[0].first}));
-    BOOST_CHECK(pruned->Verify(proof, {leaves[0].first}));
-
-    std::vector<Hash> modified_hashes = proof.GetHashes();
-    // Fill the last hash with zeros.
-    // This should cause verification to fail.
-    modified_hashes.back().fill(0);
-    BatchProof invalid(proof.GetSortedTargets(), modified_hashes);
-    // Assert that verification fails.
-    BOOST_CHECK(!pruned->Verify(invalid, {leaves[0].first}));
-}
 
 BOOST_AUTO_TEST_SUITE_END()

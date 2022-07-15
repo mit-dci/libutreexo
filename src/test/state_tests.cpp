@@ -1,16 +1,18 @@
-#include "../state.h"
+#include "utreexo.h"
+
 #include <boost/test/unit_test.hpp>
 
 using namespace utreexo;
+using namespace utreexo::detail;
 
 BOOST_AUTO_TEST_SUITE(state_tests)
 
 BOOST_AUTO_TEST_CASE(constructor)
 {
     ForestState state;
-    BOOST_CHECK(state.m_num_leaves == 0);
+    BOOST_CHECK(state.m_root_bits == 0);
     ForestState state1(100);
-    BOOST_CHECK(state1.m_num_leaves == 100);
+    BOOST_CHECK(state1.m_root_bits == 100);
 }
 
 BOOST_AUTO_TEST_CASE(positions)
@@ -58,39 +60,35 @@ BOOST_AUTO_TEST_CASE(positions)
     BOOST_CHECK(state.Cousin(5) == 7);
 }
 
-BOOST_AUTO_TEST_CASE(proof)
+#define CHECK_VECTORS_EQUAL(c1, c2)                                                                    \
+    {                                                                                                  \
+        auto c1_copy{c1};                                                                              \
+        auto c2_copy{c2};                                                                              \
+        BOOST_CHECK_EQUAL_COLLECTIONS(c1_copy.begin(), c1_copy.end(), c2_copy.begin(), c2_copy.end()); \
+    }
+
+BOOST_AUTO_TEST_CASE(proof_positions)
 {
+    ForestState state(15);
     /*
-     * 28
-     * |---------------\
-     * 24              25              26
-     * |-------\       |-------\       |-------\
-     * 16      17      18      19      20      21      22
-     * |---\   |---\   |---\   |---\   |---\   |---\   |---\
-     * 00  01  02  03  04  05  06  07  08  09  10  11  12  13  14
+     * xx
+     * |-------------------------------\
+     * 28                              xx
+     * |---------------\               |---------------\
+     * 24              25              26              xx
+     * |-------\       |-------\       |-------\       |-------\
+     * 16      17      18      19      20      21      22      xx
+     * |---\   |---\   |---\   |---\   |---\   |---\   |---\   |---\
+     * 00  01  02  03  04  05  06  07  08  09  10  11  12  13  14  xx
      */
 
-    ForestState state(15);
-
-    std::vector<uint64_t> targets = {0};
-    std::vector<uint64_t> expected_proof = {1, 17, 25};
-    std::vector<uint64_t> expected_computed = {0, 16, 24, 28};
-    std::pair<std::vector<uint64_t>, std::vector<uint64_t>> output = state.ProofPositions(targets);
-    BOOST_CHECK_EQUAL_COLLECTIONS(expected_proof.begin(), expected_proof.end(),
-                                  output.first.begin(), output.first.end());
-    BOOST_CHECK_EQUAL_COLLECTIONS(expected_computed.begin(), expected_computed.end(),
-                                  output.second.begin(), output.second.end());
-
-    targets = {0, 2, 3, 6, 8, 10, 11};
-    expected_proof = {1, 7, 9, 18};
-    expected_computed = {0, 2, 3, 6, 8, 10, 11, 16, 17, 19, 20, 21, 24, 25, 26, 28};
-    output = state.ProofPositions(targets);
-    BOOST_CHECK_EQUAL_COLLECTIONS(expected_proof.begin(), expected_proof.end(),
-                                  output.first.begin(), output.first.end());
-    BOOST_CHECK_EQUAL_COLLECTIONS(expected_computed.begin(), expected_computed.end(),
-                                  output.second.begin(), output.second.end());
-
-    // TODO: add tests with random numbers
+    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({}), std::vector<uint64_t>{});
+    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({0}), std::vector<uint64_t>({1, 17, 25}));
+    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({14, 22, 26, 28}), std::vector<uint64_t>({}));
+    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}), std::vector<uint64_t>({}));
+    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({0, 2, 4, 6, 8, 10, 12, 14}), std::vector<uint64_t>({1, 3, 5, 7, 9, 11, 13}));
+    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({0, 12, 20, 25}), std::vector<uint64_t>({1, 13, 17, 21}));
+    CHECK_VECTORS_EQUAL(state.SimpleProofPositions({4, 24}), std::vector<uint64_t>({5, 19}));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
