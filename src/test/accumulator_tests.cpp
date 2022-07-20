@@ -5,6 +5,7 @@
 #include <cstring>
 #include <random>
 #include <vector>
+#include <iostream>
 
 BOOST_AUTO_TEST_SUITE(accumulator_tests)
 
@@ -13,6 +14,61 @@ using namespace utreexo;
 using Hash = std::array<uint8_t, 32>;
 using Leaf = std::pair<Hash, bool>;
 using BatchProof = BatchProof<Hash>;
+
+static void PrintProof(const BatchProof& proof)
+{
+    std::cout << "===Proof===" << std::endl;
+    for (const uint64_t& target : proof.GetSortedTargets()) {
+        std::cout << target << ", ";
+    }
+    std::cout << std::endl;
+
+    for (const Hash& hash : proof.GetHashes()) {
+        std::cout << HexStr(hash).substr(0, 8) << ", ";
+    }
+    std::cout << std::endl;
+    std::cout << "===========" << std::endl;
+}
+
+static void TestSerialization(const Accumulator<Hash>& full, const Accumulator<Hash>& pruned, const std::vector<Hash>& leaf_hashes)
+{
+
+    BatchProof proof;
+    BOOST_CHECK(full.Prove(proof, leaf_hashes));
+
+    std::vector<uint8_t> pruned_bytes, full_bytes;
+    pruned.Serialize(pruned_bytes);
+    full.Serialize(full_bytes);
+
+    auto pruned_restored{MakeEmpty<Hash>()};
+    pruned_restored->Unserialize(pruned_bytes);
+    BOOST_CHECK(pruned_restored->Verify(proof, leaf_hashes));
+
+    auto full_restored{MakeEmpty<Hash>()};
+    full_restored->Unserialize(full_bytes);
+
+    BatchProof proof_after_restore;
+    BOOST_CHECK(full_restored->Prove(proof_after_restore, leaf_hashes));
+    BOOST_CHECK(proof_after_restore == proof);
+    BOOST_CHECK(pruned_restored->Verify(proof_after_restore, leaf_hashes));
+}
+
+BOOST_AUTO_TEST_CASE(serialize)
+{
+    auto pruned{MakeEmpty<Hash>()};
+    auto full{MakeEmpty<Hash>()};
+
+    // 1. Add 64 elements
+    std::vector<Leaf> leaves;
+    CreateTestLeaves(leaves, 63);
+
+    BOOST_CHECK(pruned->Modify(leaves, {}));
+    MarkLeavesAsMemorable(leaves);
+    BOOST_CHECK(full->Modify(leaves, {}));
+
+    std::vector<Hash> leaf_hashes = {leaves[0].first, leaves[2].first, leaves[3].first, leaves[9].first};
+    TestSerialization(*full, *pruned, leaf_hashes);
+}
 
 // Simple test that adds and deletes a bunch of elements from both a forest and pollard.
 BOOST_AUTO_TEST_CASE(simple)
@@ -171,6 +227,8 @@ BOOST_AUTO_TEST_CASE(simple_blockchain)
             leaf_hashes.push_back(cached_leaf_hashes[del_index]);
             min = std::min(max, del_index + 1);
         }
+
+        TestSerialization(*full, *pruned, leaf_hashes);
 
         BatchProof proof;
         BOOST_CHECK(full->Prove(proof, leaf_hashes));

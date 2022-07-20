@@ -11,8 +11,11 @@
 #include <optional>
 #include <queue>
 #include <set>
+#include <stack>
+#include <stdexcept>
 #include <string>
 
+#include "crypto/common.h"
 #include "crypto/sha512.h"
 
 namespace utreexo {
@@ -89,6 +92,9 @@ public:
 
     /** Return the state (root bits, merkle forest roots) of the accumulator. */
     virtual std::tuple<uint64_t, Hashes> GetState() const = 0;
+
+    virtual void Serialize(std::vector<uint8_t>& result) const = 0;
+    virtual void Unserialize(const std::vector<uint8_t>& bytes) = 0;
 };
 
 template <typename Hash>
@@ -1218,6 +1224,77 @@ public:
             root_hashes[i] = m_roots[i]->m_hash;
         }
         return {m_current_state.m_root_bits, root_hashes};
+    }
+
+    void Serialize(std::vector<uint8_t>& result) const override
+    {
+        std::vector<uint8_t> root_bit_bytes(8);
+        WriteBE64(root_bit_bytes.data(), m_current_state.m_root_bits);
+        result.insert(result.end(), root_bit_bytes.begin(), root_bit_bytes.end());
+
+        std::stack<InternalNode<Hash>*> stack;
+        for (auto rit = m_roots.rbegin(); rit != m_roots.rend(); ++rit) {
+            stack.push(*rit);
+        }
+
+        while (!stack.empty()) {
+            InternalNode<Hash>* node{stack.top()};
+            stack.pop();
+
+            uint8_t node_metadata = (node->m_nieces[0] ? (uint8_t)0b001 : (uint8_t)0) |
+                                    (node->m_nieces[1] ? (uint8_t)0b010 : (uint8_t)0) |
+                                    (IsCached(node->m_hash) ? (uint8_t)0b100 : (uint8_t)0);
+            result.push_back(node_metadata);
+
+            std::array<uint8_t, 32> hash;
+            std::memcpy(hash.data(), node->m_hash.data(), 32);
+            result.insert(result.end(), hash.begin(), hash.end());
+
+            if (node->m_nieces[1]) stack.push(node->m_nieces[1]);
+            if (node->m_nieces[0]) stack.push(node->m_nieces[0]);
+        }
+    }
+
+    InternalNode<Hash>* UnserializeSubTree(const std::vector<uint8_t>& bytes, uint64_t& data_offset)
+    {
+        uint8_t node_metadata{bytes[data_offset]};
+        data_offset += 1;
+        if (node_metadata > 7) throw std::runtime_error("failed to unserialize accumulator");
+
+        Hash hash;
+        std::memcpy(hash.data(), bytes.data() + data_offset, 32);
+        data_offset += 32;
+
+        InternalNode<Hash>* node = new InternalNode<Hash>(hash);
+
+        bool has_left_niece{(node_metadata & 1) > 0};
+        bool has_right_niece{(node_metadata & 2) > 0};
+        bool is_cached_leaf{(node_metadata & 4) > 0};
+        if (has_left_niece) {
+            node->m_nieces[0] = UnserializeSubTree(bytes, data_offset);
+        }
+        if (has_right_niece) {
+            node->m_nieces[1] = UnserializeSubTree(bytes, data_offset);
+        }
+        if (is_cached_leaf) {
+            MarkLeafAsMemorable(node);
+        }
+
+        SetAuntForNieces(*node);
+
+        return node;
+    }
+    void Unserialize(const std::vector<uint8_t>& bytes) override
+    {
+        assert(m_roots.size() == 0);
+
+        uint64_t data_offset{0};
+        m_current_state.m_root_bits = ReadBE64(bytes.data());
+        data_offset += 8;
+
+        while (data_offset < bytes.size()) {
+            m_roots.push_back(UnserializeSubTree(bytes, data_offset));
+        }
     }
 };
 
