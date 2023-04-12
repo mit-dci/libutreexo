@@ -1,3 +1,5 @@
+#include "crypto/common.h"
+
 #include <algorithm>
 #include <bitset>
 #include <check.h>
@@ -308,35 +310,8 @@ uint8_t ForestState::RootIndex(uint64_t pos) const
 
 uint8_t _numRows(uint64_t num_leaves)
 {
-    // numRows works by:
-    // 1. Find the next power of 2 from the given n leaves.
-    // 2. Calculate the log2 of the result from step 1.
-    //
-    // For example, if the given number is 9, the next power of 2 is
-    // 16. This log2 of this number is how many rows there are in the
-    // given tree.
-    //
-    // This works because while Utreexo is a collection of perfect
-    // trees, the allocated number of leaves is always a power of 2.
-    // For Utreexo trees that don't have leaves that are power of 2,
-    // the extra space is just unallocated/filled with zeros.
-
-    // Find the next power of 2
-
-    uint64_t n = num_leaves;
-    --n;
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-    n |= n >> 32;
-    ++n;
-
-    // log of 2 is the tree depth/height
-    // if n == 0, there will be 64 traling zeros but actually no tree rows.
-    // we clear the 6th bit to return 0 in that case.
-    return uint8_t(trailingZeros(n) & ~64ULL);
+    if (num_leaves == 0) return 0;
+    return CountBits(num_leaves - 1);
 }
 
 
